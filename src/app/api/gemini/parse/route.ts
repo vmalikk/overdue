@@ -77,8 +77,28 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in parse endpoint:', error)
+    
+    const errorMessage = String(error)
+    
+    // Handle quota exceeded errors with a friendly message
+    if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('Too Many Requests')) {
+      return NextResponse.json(
+        { 
+          error: 'AI quota exceeded',
+          message: 'The free AI quota has been reached. Please try again later or enable billing in Google AI Studio.',
+          fallback: true,
+          parsed: {
+            title: '', // Will need to be filled by the client
+            confidence: 0,
+            warnings: ['AI quota exceeded. Please enter assignment details manually.']
+          }
+        },
+        { status: 429 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to parse input', details: String(error) },
+      { error: 'Failed to parse input', details: errorMessage },
       { status: 500 }
     )
   }
