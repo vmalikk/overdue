@@ -39,15 +39,10 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signInWithGoogle = async () => {
-    const successUrl = window.location.origin
-    const failureUrl = `${window.location.origin}/login?error=auth`
-    
     account.createOAuth2Session(
       OAuthProvider.Google,
-      successUrl,
-      failureUrl,
-      // Request Google Calendar scopes
-      ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events']
+      "https://overdue.malikv.com/",
+      "https://overdue.malikv.com/login?error=auth"
     )
   }
 
