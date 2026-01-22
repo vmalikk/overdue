@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import { SessionProvider } from '@/components/providers/SessionProvider'
+import { SupabaseAuthProvider } from '@/components/providers/SupabaseAuthProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Assignment Tracker',
+  title: 'Overdue - Assignment Tracker',
   description: 'Track your academic assignments with intelligent color-coding and AI-powered features',
 }
 
@@ -15,9 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background text-text-primary min-h-screen">
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+        <SupabaseAuthProvider>
+          <SessionProvider>
+            {children}
+          </SessionProvider>
+        </SupabaseAuthProvider>
       </body>
     </html>
   )
