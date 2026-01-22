@@ -43,22 +43,24 @@ export default function Dashboard() {
         <Header />
         <Navigation currentTab={currentTab} onTabChange={setCurrentTab} />
 
-        <main className="max-w-7xl mx-auto px-6 py-8">
+        <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
           {/* Dashboard Tab */}
           {currentTab === 'dashboard' && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 md:gap-8">
               {/* Main content - Assignment Table */}
-              <div className="w-full">
+              <div className="w-full order-2 lg:order-1">
                 <AssignmentTable />
               </div>
 
               {/* Sidebar - Calendars */}
-              <aside className="w-full flex flex-col gap-6">
+              <aside className="w-full flex flex-col gap-4 md:gap-6 order-1 lg:order-2">
                 {/* Mini Calendar */}
                 <MiniCalendar />
 
-                {/* Daily Calendar */}
-                <DailyCalendar />
+                {/* Daily Calendar - hide on mobile */}
+                <div className="hidden md:block">
+                  <DailyCalendar />
+                </div>
               </aside>
             </div>
           )}

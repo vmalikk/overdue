@@ -67,8 +67,38 @@ export function AssignmentTable() {
         />
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border border-border rounded-lg">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filteredAssignments.length === 0 ? (
+          <div className="text-center py-12">
+            <svg
+              className="w-12 h-12 text-text-muted mx-auto mb-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            <p className="text-text-muted">
+              {searchQuery
+                ? 'No assignments match your search'
+                : 'No assignments yet. Tap + to add one!'}
+            </p>
+          </div>
+        ) : (
+          filteredAssignments.map((assignment) => (
+            <AssignmentRow key={assignment.id} assignment={assignment} isMobile />
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto border border-border rounded-lg">
         <table className="w-full">
           <thead className="bg-secondary sticky top-0">
             <tr className="border-b border-border">

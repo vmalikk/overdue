@@ -56,7 +56,7 @@ export function Modal({
   }
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -66,21 +66,22 @@ export function Modal({
       {/* Modal */}
       <div
         className={clsx(
-          'relative w-full bg-secondary border border-border rounded-lg shadow-2xl',
-          'max-h-[90vh] overflow-hidden flex flex-col',
+          'relative w-full bg-secondary border border-border shadow-2xl',
+          'max-h-[90vh] md:max-h-[85vh] overflow-hidden flex flex-col',
+          'rounded-t-2xl md:rounded-lg',
           sizes[size]
         )}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-border">
             {title && (
-              <h2 className="text-xl font-semibold text-text-primary">{title}</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-text-primary">{title}</h2>
             )}
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="p-1 rounded-md hover:bg-accent text-text-secondary hover:text-text-primary transition-colors"
+                className="p-2 rounded-md hover:bg-accent text-text-secondary hover:text-text-primary transition-colors"
                 aria-label="Close modal"
               >
                 <svg
@@ -100,7 +101,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
           {children}
         </div>
       </div>

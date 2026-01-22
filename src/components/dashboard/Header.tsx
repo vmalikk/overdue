@@ -22,21 +22,50 @@ export function Header() {
   const time = format(currentTime, 'h:mm:ss a')
 
   return (
-    <header className="w-full py-8 border-b border-border bg-gradient-to-b from-secondary to-background">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-end justify-between">
+    <header className="w-full py-4 md:py-8 border-b border-border bg-gradient-to-b from-secondary to-background">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           {/* Title Section */}
-          <div>
-            <h1 className="text-4xl font-bold text-text-primary mb-1 tracking-tight">
-              Overdue
-            </h1>
-            <p className="text-sm text-text-muted">
-              Stay organized, stay ahead
-            </p>
+          <div className="flex items-center justify-between md:block">
+            <div>
+              <h1 className="text-2xl md:text-4xl font-bold text-text-primary mb-0 md:mb-1 tracking-tight">
+                Overdue
+              </h1>
+              <p className="text-xs md:text-sm text-text-muted hidden md:block">
+                Stay organized, stay ahead
+              </p>
+            </div>
+            {/* Mobile user avatar & sign out */}
+            <div className="flex md:hidden items-center gap-2">
+              {!loading && user && (
+                <>
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium text-sm">
+                    {(user.prefs as Record<string, string>)?.avatar ? (
+                      <img 
+                        src={(user.prefs as Record<string, string>).avatar} 
+                        alt="Profile" 
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      user.email?.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <button
+                    onClick={signOut}
+                    className="p-2 text-text-muted hover:text-text-primary hover:bg-accent rounded-lg transition-colors"
+                    title="Sign out"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Right Section - User & Time */}
-          <div className="flex items-center gap-8">
+          {/* Right Section - User & Time (Desktop) */}
+          <div className="hidden md:flex items-center gap-8">
             {/* User Section */}
             {!loading && user && (
               <div className="flex items-center gap-3">
@@ -79,6 +108,18 @@ export function Header() {
                 <span className="mx-2">•</span>
                 <span>{date}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Mobile Time Display */}
+          <div className="md:hidden text-center">
+            <div className="text-lg font-semibold text-text-primary font-mono">
+              {time}
+            </div>
+            <div className="text-xs text-text-secondary">
+              <span className="font-medium">{dayOfWeek}</span>
+              <span className="mx-1">•</span>
+              <span>{date}</span>
             </div>
           </div>
         </div>

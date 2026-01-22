@@ -58,11 +58,10 @@ export function MiniCalendar() {
 
   return (
     <div
-      className="bg-secondary border border-border rounded-lg p-4"
-      style={{ width: '280px', minHeight: '300px' }}
+      className="bg-secondary border border-border rounded-lg p-3 md:p-4 w-full md:w-[280px] md:min-h-[300px]"
     >
       {/* Header with month navigation */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 md:mb-4">
         <button
           onClick={previousMonth}
           className="p-1 rounded hover:bg-accent transition-colors"
