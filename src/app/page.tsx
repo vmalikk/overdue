@@ -11,6 +11,8 @@ import { QuickAddButton } from '@/components/dashboard/QuickAddButton'
 import { CourseManager } from '@/components/courses/CourseManager'
 import { SettingsPage } from '@/components/pages/SettingsPage'
 import { CalendarSyncPage } from '@/components/pages/CalendarSyncPage'
+import { StatisticsPage } from '@/components/pages/StatisticsPage'
+import { FullCalendarPage } from '@/components/pages/FullCalendarPage'
 import { ToastContainer } from '@/components/ui/Toast'
 
 export default function Dashboard() {
@@ -41,6 +43,12 @@ export default function Dashboard() {
               </aside>
             </div>
           )}
+
+          {/* Statistics Tab */}
+          {currentTab === 'statistics' && <StatisticsPage />}
+
+          {/* Full Calendar Tab */}
+          {currentTab === 'fullcalendar' && <FullCalendarPage />}
 
           {/* Courses Tab */}
           {currentTab === 'courses' && <CourseManager />}
