@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { addMonths, subMonths, addWeeks, subWeeks, startOfDay, endOfDay } from 'date-fns'
+import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfDay, endOfDay } from 'date-fns'
 import { useSession } from 'next-auth/react'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCalendarStore } from '@/store/calendarStore'
 import { getVisibleDateRange, getAssignmentsForDate, getEventsForDate, CalendarEvent } from '@/lib/utils/calendarUtils'
-import { CalendarHeader } from '@/components/calendar/CalendarHeader'
+import { GoogleStyleCalendarHeader, CalendarViewType } from '@/components/calendar/GoogleStyleCalendarHeader'
 import { MonthView } from '@/components/calendar/MonthView'
-import { WeekView } from '@/components/calendar/WeekView'
+import { GoogleStyleWeekView } from '@/components/calendar/GoogleStyleWeekView'
+import { DayView } from '@/components/calendar/DayView'
 import { DaySidebar } from '@/components/calendar/DaySidebar'
 
 export function FullCalendarPage() {
@@ -17,7 +18,7 @@ export function FullCalendarPage() {
   const { config, events, setEvents } = useCalendarStore()
 
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [view, setView] = useState<'month' | 'week'>('month')
+  const [view, setView] = useState<CalendarViewType>('week')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -77,14 +78,20 @@ export function FullCalendarPage() {
       return
     }
 
-    if (view === 'month') {
-      setCurrentDate(direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1))
-    } else {
-      setCurrentDate(direction === 'prev' ? subWeeks(currentDate, 1) : addWeeks(currentDate, 1))
+    switch (view) {
+      case 'month':
+        setCurrentDate(direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1))
+        break
+      case 'week':
+        setCurrentDate(direction === 'prev' ? subWeeks(currentDate, 1) : addWeeks(currentDate, 1))
+        break
+      case 'day':
+        setCurrentDate(direction === 'prev' ? subDays(currentDate, 1) : addDays(currentDate, 1))
+        break
     }
   }
 
-  const handleViewChange = (newView: 'month' | 'week') => {
+  const handleViewChange = (newView: CalendarViewType) => {
     setView(newView)
   }
 
@@ -111,13 +118,13 @@ export function FullCalendarPage() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex-shrink-0">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-start mb-2">
           <div>
-            <h2 className="text-2xl font-bold text-text-primary">Calendar</h2>
-            <p className="text-sm text-text-muted mt-1">
-              View all your assignments and events
-              {config.connected && (
-                <span className="ml-2 text-status-green">● Google Calendar connected</span>
+            <p className="text-sm text-text-muted">
+              {config.connected ? (
+                <span className="text-status-green">● Google Calendar connected</span>
+              ) : (
+                <span>Connect Google Calendar in Settings to see your events</span>
               )}
             </p>
           </div>
@@ -126,7 +133,7 @@ export function FullCalendarPage() {
           )}
         </div>
 
-        <CalendarHeader
+        <GoogleStyleCalendarHeader
           currentDate={currentDate}
           view={view}
           onNavigate={handleNavigate}
@@ -135,10 +142,10 @@ export function FullCalendarPage() {
       </div>
 
       {/* Calendar content with sidebar */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Main calendar */}
-        <div className="flex-1 overflow-auto">
-          {view === 'month' ? (
+        <div className="flex-1 overflow-hidden">
+          {view === 'month' && (
             <MonthView
               year={year}
               month={month}
@@ -147,8 +154,9 @@ export function FullCalendarPage() {
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
             />
-          ) : (
-            <WeekView
+          )}
+          {view === 'week' && (
+            <GoogleStyleWeekView
               currentDate={currentDate}
               assignments={assignments}
               events={events}
@@ -156,16 +164,25 @@ export function FullCalendarPage() {
               onDateSelect={handleDateSelect}
             />
           )}
+          {view === 'day' && (
+            <DayView
+              currentDate={currentDate}
+              assignments={assignments}
+              events={events}
+            />
+          )}
         </div>
 
-        {/* Day details sidebar */}
-        <DaySidebar
-          isOpen={!!selectedDate}
-          date={selectedDate}
-          assignments={selectedDateAssignments}
-          events={selectedDateEvents}
-          onClose={handleCloseSidebar}
-        />
+        {/* Day details sidebar - only show in month/week view */}
+        {view !== 'day' && (
+          <DaySidebar
+            isOpen={!!selectedDate}
+            date={selectedDate}
+            assignments={selectedDateAssignments}
+            events={selectedDateEvents}
+            onClose={handleCloseSidebar}
+          />
+        )}
       </div>
 
       {/* Legend */}
