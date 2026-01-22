@@ -57,7 +57,7 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   const signInWithGoogle = () => {
     account.createOAuth2Session(
       OAuthProvider.Google,
-      "https://overdue.malikv.com/",
+      "https://overdue.malikv.com/auth/callback",
       "https://overdue.malikv.com/login?error=auth"
     )
   }
