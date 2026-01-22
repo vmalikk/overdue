@@ -1,7 +1,6 @@
 import { create } from 'zustand'
-import { v4 as uuidv4 } from 'uuid'
 import { Course, CourseFormData } from '@/types/course'
-import * as db from '@/lib/db/indexedDB'
+import * as db from '@/lib/appwrite/database'
 import { DEFAULTS } from '@/config/constants'
 
 interface CourseStore {
@@ -9,8 +8,10 @@ interface CourseStore {
   courses: Course[]
   activeCourses: Course[]
   isLoading: boolean
+  userId: string | null
 
   // Actions
+  setUserId: (userId: string | null) => void
   loadCourses: () => Promise<void>
   addCourse: (data: CourseFormData) => Promise<Course>
   updateCourse: (id: string, updates: Partial<Course>) => Promise<void>
@@ -27,12 +28,21 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
   courses: [],
   activeCourses: [],
   isLoading: false,
+  userId: null,
 
-  // Load all courses from IndexedDB
+  // Set user ID
+  setUserId: (userId: string | null) => {
+    set({ userId })
+  },
+
+  // Load all courses from Appwrite
   loadCourses: async () => {
+    const { userId } = get()
+    if (!userId) return
+
     set({ isLoading: true })
     try {
-      const courses = await db.getAllCourses()
+      const courses = await db.getAllCourses(userId)
       const activeCourses = courses.filter((c) => c.active)
       set({ courses, activeCourses })
     } catch (error) {
@@ -44,8 +54,10 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
 
   // Add new course
   addCourse: async (data: CourseFormData) => {
-    const course: Course = {
-      id: uuidv4(),
+    const { userId } = get()
+    if (!userId) throw new Error('User not authenticated')
+
+    const courseData = {
       code: data.code,
       name: data.name,
       color: data.color || DEFAULTS.COURSE_COLOR,
@@ -55,7 +67,7 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
     }
 
     try {
-      await db.addCourse(course)
+      const course = await db.addCourse(courseData, userId)
       set((state) => ({
         courses: [...state.courses, course],
         activeCourses: course.active

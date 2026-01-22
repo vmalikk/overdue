@@ -1,7 +1,6 @@
 import { create } from 'zustand'
-import { v4 as uuidv4 } from 'uuid'
 import { Assignment, AssignmentStatus, Priority, AssignmentFormData } from '@/types/assignment'
-import * as db from '@/lib/db/indexedDB'
+import * as db from '@/lib/appwrite/database'
 
 interface AssignmentStore {
   // State
@@ -14,8 +13,10 @@ interface AssignmentStore {
   sortBy: 'deadline' | 'priority' | 'createdAt' | 'title'
   sortOrder: 'asc' | 'desc'
   isLoading: boolean
+  userId: string | null
 
   // Actions
+  setUserId: (userId: string | null) => void
   loadAssignments: () => Promise<void>
   addAssignment: (data: AssignmentFormData) => Promise<Assignment>
   updateAssignment: (id: string, updates: Partial<Assignment>) => Promise<void>
@@ -48,12 +49,21 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   sortBy: 'deadline',
   sortOrder: 'asc',
   isLoading: false,
+  userId: null,
 
-  // Load all assignments from IndexedDB
+  // Set user ID
+  setUserId: (userId: string | null) => {
+    set({ userId })
+  },
+
+  // Load all assignments from Appwrite
   loadAssignments: async () => {
+    const { userId } = get()
+    if (!userId) return
+    
     set({ isLoading: true })
     try {
-      const assignments = await db.getAllAssignments()
+      const assignments = await db.getAllAssignments(userId)
       set({ assignments })
       get().applyFilters()
     } catch (error) {
@@ -65,17 +75,18 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
 
   // Add new assignment
   addAssignment: async (data: AssignmentFormData) => {
-    const now = new Date()
-    const assignment: Assignment = {
-      id: uuidv4(),
+    const { userId } = get()
+    if (!userId) throw new Error('User not authenticated')
+
+    const assignmentData = {
       ...data,
       status: AssignmentStatus.NOT_STARTED,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
     try {
-      await db.addAssignment(assignment)
+      const assignment = await db.addAssignment(assignmentData, userId)
       set((state) => ({
         assignments: [...state.assignments, assignment],
       }))
@@ -98,6 +109,10 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       }))
       get().applyFilters()
     } catch (error) {
+      console.error('Failed to update assignment:', error)
+      throw error
+    }
+  },
       console.error('Failed to update assignment:', error)
       throw error
     }
@@ -254,7 +269,9 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
 
   // Delete all completed assignments
   deleteCompleted: async () => {
-    const { assignments } = get()
+    const { assignments, userId } = get()
+    if (!userId) return
+    
     const completed = assignments.filter((a) => a.status === AssignmentStatus.COMPLETED)
 
     try {

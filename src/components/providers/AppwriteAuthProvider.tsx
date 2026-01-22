@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { account } from '@/lib/appwrite/client'
 import { Models, OAuthProvider, ID } from 'appwrite'
+import { useAssignmentStore } from '@/store/assignmentStore'
+import { useCourseStore } from '@/store/courseStore'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -25,6 +27,11 @@ const AuthContext = createContext<AuthContextType>({
 export function AppwriteAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  const setAssignmentUserId = useAssignmentStore((state) => state.setUserId)
+  const setCoursesUserId = useCourseStore((state) => state.setUserId)
+  const loadAssignments = useAssignmentStore((state) => state.loadAssignments)
+  const loadCourses = useCourseStore((state) => state.loadCourses)
 
   useEffect(() => {
     checkUser()
@@ -34,8 +41,14 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     try {
       const currentUser = await account.get()
       setUser(currentUser)
+      // Set userId in stores and load data
+      setAssignmentUserId(currentUser.$id)
+      setCoursesUserId(currentUser.$id)
+      await Promise.all([loadAssignments(), loadCourses()])
     } catch (error) {
       setUser(null)
+      setAssignmentUserId(null)
+      setCoursesUserId(null)
     } finally {
       setLoading(false)
     }
@@ -53,6 +66,10 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     await account.createEmailPasswordSession(email, password)
     const currentUser = await account.get()
     setUser(currentUser)
+    // Set userId in stores and load data
+    setAssignmentUserId(currentUser.$id)
+    setCoursesUserId(currentUser.$id)
+    await Promise.all([loadAssignments(), loadCourses()])
   }
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
@@ -61,12 +78,18 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     await account.createEmailPasswordSession(email, password)
     const currentUser = await account.get()
     setUser(currentUser)
+    // Set userId in stores and load data
+    setAssignmentUserId(currentUser.$id)
+    setCoursesUserId(currentUser.$id)
+    await Promise.all([loadAssignments(), loadCourses()])
   }
 
   const signOut = async () => {
     try {
       await account.deleteSession('current')
       setUser(null)
+      setAssignmentUserId(null)
+      setCoursesUserId(null)
       window.location.href = '/login'
     } catch (error) {
       console.error('Error signing out:', error)

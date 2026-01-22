@@ -1,0 +1,2 @@
+title,description,courseId,deadline,priority,status,estimatedHours,tags,notes,userId,createdAt,updatedAt,completedAt
+"Sample Assignment","This is a sample description","","2026-02-01T23:59:00.000Z","medium","pending",2,"homework","","{USER_ID}","2026-01-22T00:00:00.000Z","2026-01-22T00:00:00.000Z",""
