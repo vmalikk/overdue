@@ -1,25 +1,42 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/components/providers/AppwriteAuthProvider'
+import { account } from '@/lib/appwrite/client'
 
 export default function AuthCallback() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const [attempts, setAttempts] = useState(0)
+  const maxAttempts = 5
 
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (!loading) {
-      if (user) {
-        // Successfully authenticated, go to dashboard
-        router.replace('/')
+    const checkAuth = async () => {
+      try {
+        // Try to get the current user
+        const user = await account.get()
+        if (user) {
+          // Successfully authenticated, go to dashboard
+          router.replace('/')
+          return
+        }
+      } catch (error) {
+        // Session not ready yet
+        console.log('Auth check attempt', attempts + 1, 'failed, retrying...')
+      }
+
+      // Retry after a delay
+      if (attempts < maxAttempts) {
+        setTimeout(() => {
+          setAttempts(prev => prev + 1)
+        }, 500)
       } else {
-        // Auth failed, go back to login
+        // Max attempts reached, redirect to login with error
         router.replace('/login?error=auth')
       }
     }
-  }, [user, loading, router])
+
+    checkAuth()
+  }, [attempts, router])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
