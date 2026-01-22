@@ -113,10 +113,6 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       throw error
     }
   },
-      console.error('Failed to update assignment:', error)
-      throw error
-    }
-  },
 
   // Delete assignment
   deleteAssignment: async (id: string) => {
