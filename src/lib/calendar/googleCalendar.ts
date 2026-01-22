@@ -8,14 +8,16 @@ export interface CalendarEvent {
   start: Date
   end: Date
   colorId?: string
+  startRaw?: string  // Original datetime string from Google
+  endRaw?: string    // Original datetime string from Google
 }
 
 export interface ImportedEvent {
   title: string
   description?: string
   deadline: Date
-  start: Date
-  end: Date
+  start: string      // ISO string for serialization
+  end: string        // ISO string for serialization
   source: 'google_calendar'
   googleCalendarEventId: string
 }
@@ -60,14 +62,20 @@ export async function fetchCalendarEvents(
   
   return events
     .filter((event) => event.start?.dateTime || event.start?.date)
-    .map((event) => ({
-      id: event.id!,
-      summary: event.summary || 'Untitled Event',
-      description: event.description || undefined,
-      start: new Date(event.start?.dateTime || event.start?.date || ''),
-      end: new Date(event.end?.dateTime || event.end?.date || ''),
-      colorId: event.colorId || undefined,
-    }))
+    .map((event) => {
+      const startStr = event.start?.dateTime || event.start?.date || ''
+      const endStr = event.end?.dateTime || event.end?.date || ''
+      return {
+        id: event.id!,
+        summary: event.summary || 'Untitled Event',
+        description: event.description || undefined,
+        start: new Date(startStr),
+        end: new Date(endStr),
+        colorId: event.colorId || undefined,
+        startRaw: startStr,
+        endRaw: endStr,
+      }
+    })
 }
 
 /**
@@ -78,8 +86,8 @@ export function eventsToImportFormat(events: CalendarEvent[]): ImportedEvent[] {
     title: event.summary,
     description: event.description,
     deadline: event.start,
-    start: event.start,
-    end: event.end,
+    start: event.startRaw || event.start.toISOString(),
+    end: event.endRaw || event.end.toISOString(),
     source: 'google_calendar' as const,
     googleCalendarEventId: event.id,
   }))

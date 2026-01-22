@@ -43,14 +43,20 @@ export function FullCalendarPage() {
           description?: string
           start: string
           end: string
-        }) => ({
-          id: e.googleCalendarEventId,
-          summary: e.title || 'Untitled',
-          description: e.description,
-          start: new Date(e.start),
-          end: new Date(e.end),
-          isAllDay: false,
-        }))
+        }) => {
+          // Parse dates - the API returns original Google Calendar datetime strings
+          const startDate = new Date(e.start)
+          const endDate = new Date(e.end)
+          
+          return {
+            id: e.googleCalendarEventId,
+            summary: e.title || 'Untitled',
+            description: e.description,
+            start: startDate,
+            end: endDate,
+            isAllDay: !e.start.includes('T'), // All-day events don't have time component
+          }
+        })
         setEvents(calendarEvents)
       }
     } catch (error) {
