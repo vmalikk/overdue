@@ -7,6 +7,7 @@ import { Navigation, TabType } from '@/components/layout/Navigation'
 import { AssignmentTable } from '@/components/dashboard/AssignmentTable'
 import { MiniCalendar } from '@/components/dashboard/MiniCalendar'
 import { DailyCalendar } from '@/components/dashboard/DailyCalendar'
+import { StorageUsage } from '@/components/dashboard/StorageUsage'
 import { QuickAddForm } from '@/components/dashboard/QuickAddForm'
 import { QuickAddButton } from '@/components/dashboard/QuickAddButton'
 import { CourseManager } from '@/components/courses/CourseManager'
@@ -60,6 +61,9 @@ export default function Dashboard() {
                 <div className="hidden md:block">
                   <DailyCalendar />
                 </div>
+
+                {/* Storage Usage */}
+                <StorageUsage />
               </aside>
             </div>
           )}
