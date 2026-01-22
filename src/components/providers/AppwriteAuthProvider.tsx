@@ -55,7 +55,8 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signInWithGoogle = () => {
-    account.createOAuth2Session(
+    // Use token-based OAuth to handle cross-site cookie issues
+    account.createOAuth2Token(
       OAuthProvider.Google,
       "https://overdue.malikv.com/auth/callback",
       "https://overdue.malikv.com/login?error=auth"

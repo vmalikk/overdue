@@ -1,49 +1,55 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { account } from '@/lib/appwrite/client'
 
 export default function AuthCallback() {
   const router = useRouter()
-  const [attempts, setAttempts] = useState(0)
+  const searchParams = useSearchParams()
   const [status, setStatus] = useState('Completing sign in...')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const maxAttempts = 10
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const handleCallback = async () => {
       try {
-        setStatus(`Checking session (attempt ${attempts + 1})...`)
-        // Try to get the current user
-        const user = await account.get()
-        if (user) {
+        // Check for OAuth token in URL params (from createOAuth2Token)
+        const userId = searchParams.get('userId')
+        const secret = searchParams.get('secret')
+
+        if (userId && secret) {
+          setStatus('Creating session...')
+          // Exchange the token for a session
+          await account.createSession(userId, secret)
           setStatus('Success! Redirecting...')
-          // Successfully authenticated, go to dashboard
-          // Force a full page reload to ensure cookies are picked up
           window.location.href = '/'
           return
         }
-      } catch (error: any) {
-        // Session not ready yet
-        const msg = error?.message || error?.toString() || 'Unknown error'
-        console.log('Auth check attempt', attempts + 1, 'error:', msg)
-        setErrorMsg(msg)
-      }
 
-      // Retry after a delay
-      if (attempts < maxAttempts) {
+        // Fallback: check if already authenticated (cookie-based flow)
+        setStatus('Checking session...')
+        const user = await account.get()
+        if (user) {
+          setStatus('Success! Redirecting...')
+          window.location.href = '/'
+          return
+        }
+
+        // No session found
+        throw new Error('No session token received')
+      } catch (error: any) {
+        const msg = error?.message || error?.toString() || 'Unknown error'
+        console.error('Auth callback error:', msg)
+        setErrorMsg(msg)
+        // Wait a moment before redirecting to show error
         setTimeout(() => {
-          setAttempts(prev => prev + 1)
-        }, 500)
-      } else {
-        // Max attempts reached, redirect to login with error
-        router.replace('/login?error=auth')
+          router.replace('/login?error=auth')
+        }, 2000)
       }
     }
 
-    checkAuth()
-  }, [attempts, router])
+    handleCallback()
+  }, [searchParams, router])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
