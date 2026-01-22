@@ -1,9 +1,9 @@
 import { storage } from './client';
 import { ID } from 'appwrite';
 
-// You need to create a bucket in Appwrite Storage with this ID
-// or update this ID to match your existing bucket.
-export const STORAGE_BUCKET_ID = 'assignments';
+// Use environment variable if available, otherwise default to 'assignments'
+// IMPORTANT: You must create this bucket in Appwrite Console
+export const STORAGE_BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID || 'assignments';
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
