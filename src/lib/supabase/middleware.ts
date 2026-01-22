@@ -36,10 +36,15 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Protected routes - redirect to login if not authenticated
-  const protectedRoutes = ['/dashboard', '/courses', '/calendar', '/settings']
-  const isProtectedRoute = protectedRoutes.some(route => 
+  // The homepage "/" requires exact match, others use startsWith
+  const exactProtectedRoutes = ['/']
+  const prefixProtectedRoutes = ['/dashboard', '/courses', '/calendar', '/settings']
+  
+  const isExactProtected = exactProtectedRoutes.includes(request.nextUrl.pathname)
+  const isPrefixProtected = prefixProtectedRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route)
   )
+  const isProtectedRoute = isExactProtected || isPrefixProtected
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone()
