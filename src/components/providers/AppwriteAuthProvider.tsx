@@ -2,13 +2,15 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { account } from '@/lib/appwrite/client'
-import { Models, OAuthProvider } from 'appwrite'
+import { Models, OAuthProvider, ID } from 'appwrite'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
   loading: boolean
   signOut: () => Promise<void>
   signInWithGoogle: () => void
+  signInWithEmail: (email: string, password: string) => Promise<void>
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signOut: async () => {},
   signInWithGoogle: () => {},
+  signInWithEmail: async () => {},
+  signUpWithEmail: async () => {},
 })
 
 export function AppwriteAuthProvider({ children }: { children: React.ReactNode }) {
@@ -45,6 +49,20 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     )
   }
 
+  const signInWithEmail = async (email: string, password: string) => {
+    await account.createEmailPasswordSession(email, password)
+    const currentUser = await account.get()
+    setUser(currentUser)
+  }
+
+  const signUpWithEmail = async (email: string, password: string, name?: string) => {
+    await account.create(ID.unique(), email, password, name)
+    // Auto sign in after signup
+    await account.createEmailPasswordSession(email, password)
+    const currentUser = await account.get()
+    setUser(currentUser)
+  }
+
   const signOut = async () => {
     try {
       await account.deleteSession('current')
@@ -56,7 +74,7 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, signInWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, signOut, signInWithGoogle, signInWithEmail, signUpWithEmail }}>
       {children}
     </AuthContext.Provider>
   )

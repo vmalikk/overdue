@@ -6,11 +6,13 @@ import Link from 'next/link'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
 
 function LoginContent() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [buttonLoading, setButtonLoading] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { user, loading, signInWithGoogle } = useAuth()
+  const { user, loading, signInWithGoogle, signInWithEmail } = useAuth()
 
   // Check for error in URL params
   const urlError = searchParams.get('error')
@@ -21,6 +23,19 @@ function LoginContent() {
       router.push('/')
     }
   }, [user, loading, router])
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setButtonLoading(true)
+    setError(null)
+    try {
+      await signInWithEmail(email, password)
+      router.push('/')
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in')
+      setButtonLoading(false)
+    }
+  }
 
   const handleGoogleLogin = () => {
     setButtonLoading(true)
@@ -54,6 +69,55 @@ function LoginContent() {
           </div>
         )}
 
+        <form onSubmit={handleEmailLogin} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-text-primary mb-2">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-2">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={buttonLoading}
+            className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {buttonLoading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-secondary text-text-muted">Or continue with</span>
+          </div>
+        </div>
+
         <button
           onClick={handleGoogleLogin}
           disabled={buttonLoading}
@@ -77,7 +141,7 @@ function LoginContent() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          {buttonLoading ? 'Signing in...' : 'Continue with Google'}
+          Continue with Google
         </button>
 
         <p className="mt-6 text-center text-sm text-text-muted">
