@@ -159,6 +159,7 @@ export function QuickAddForm() {
       priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
       estimatedHours: undefined,
       notes: '',
+      file: undefined,
     })
     setErrors({})
     setParsedResult(null)

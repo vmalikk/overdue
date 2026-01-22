@@ -37,7 +37,7 @@ export async function getFileDownloadUrl(fileId: string): Promise<string> {
             STORAGE_BUCKET_ID,
             fileId
         );
-        return url.href;
+        return url;
     } catch (error) {
         console.error('Failed to get file URL:', error);
         throw error;
