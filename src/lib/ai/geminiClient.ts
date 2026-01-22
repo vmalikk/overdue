@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import { NLPParseResult, StudyTipsResponse, DeadlineSuggestion } from '@/types/ai'
 
 // Rate limiting configuration
@@ -45,24 +45,25 @@ export function checkRateLimit(clientId: string = 'default'): { allowed: boolean
   }
 }
 
-/**
- * Creates a Gemini AI client
- */
-export function createGeminiClient(): GenerativeModel {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured')
-  }
+// Create the AI client instance
+let aiClient: GoogleGenAI | null = null
 
-  const genAI = new GoogleGenerativeAI(apiKey)
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' })
+function getAIClient(): GoogleGenAI {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured')
+    }
+    aiClient = new GoogleGenAI({ apiKey })
+  }
+  return aiClient
 }
 
 /**
  * Parse natural language input into structured assignment data
  */
 export async function parseNaturalLanguage(input: string): Promise<NLPParseResult> {
-  const model = createGeminiClient()
+  const ai = getAIClient()
 
   const prompt = `You are an assignment parser. Parse the following natural language input into structured assignment data.
 
@@ -96,12 +97,15 @@ Example for "ECE 306 lab due Friday 5pm":
 }`
 
   try {
-    const result = await model.generateContent(prompt)
-    const response = result.response.text()
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+    })
+    const responseText = response.text || ''
     
     // Extract JSON from response (handle markdown code blocks)
-    let jsonStr = response
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
+    let jsonStr = responseText
+    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }
@@ -150,7 +154,7 @@ export async function generateStudyTips(
   deadline: Date,
   estimatedHours: number | undefined
 ): Promise<StudyTipsResponse> {
-  const model = createGeminiClient()
+  const ai = getAIClient()
 
   const daysUntilDue = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   
@@ -171,11 +175,14 @@ Return a JSON object with:
 IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
 
   try {
-    const result = await model.generateContent(prompt)
-    const response = result.response.text()
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+    })
+    const responseText = response.text || ''
     
-    let jsonStr = response
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
+    let jsonStr = responseText
+    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }
@@ -222,7 +229,7 @@ export async function generateDeadlineSuggestion(
   currentDeadline: Date,
   existingAssignments: { title: string; deadline: Date; courseCode?: string }[]
 ): Promise<DeadlineSuggestion> {
-  const model = createGeminiClient()
+  const ai = getAIClient()
 
   const upcomingAssignments = existingAssignments
     .filter((a) => new Date(a.deadline) > new Date())
@@ -251,11 +258,14 @@ Return a JSON object with:
 IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
 
   try {
-    const result = await model.generateContent(prompt)
-    const response = result.response.text()
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+    })
+    const responseText = response.text || ''
     
-    let jsonStr = response
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
+    let jsonStr = responseText
+    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }

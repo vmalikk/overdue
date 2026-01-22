@@ -11,7 +11,6 @@ import { QuickAddForm } from '@/components/dashboard/QuickAddForm'
 import { QuickAddButton } from '@/components/dashboard/QuickAddButton'
 import { CourseManager } from '@/components/courses/CourseManager'
 import { SettingsPage } from '@/components/pages/SettingsPage'
-import { CalendarSyncPage } from '@/components/pages/CalendarSyncPage'
 import { StatisticsPage } from '@/components/pages/StatisticsPage'
 import { FullCalendarPage } from '@/components/pages/FullCalendarPage'
 import { ToastContainer } from '@/components/ui/Toast'
@@ -73,9 +72,6 @@ export default function Dashboard() {
 
           {/* Courses Tab */}
           {currentTab === 'courses' && <CourseManager />}
-
-          {/* Calendar Sync Tab */}
-          {currentTab === 'calendar' && <CalendarSyncPage />}
 
           {/* Settings Tab */}
           {currentTab === 'settings' && <SettingsPage />}
