@@ -145,7 +145,6 @@ export async function addCourse(course: Omit<Course, 'id'>, userId: string): Pro
       instructor: course.instructor || null,
       active: course.active ?? true,
       userId: userId,
-      createdAt: new Date().toISOString(),
     }
   );
   return mapDocumentToCourse(doc);
@@ -197,6 +196,6 @@ function mapDocumentToCourse(doc: any): Course {
     color: doc.color,
     instructor: doc.instructor,
     active: doc.active,
-    createdAt: new Date(doc.createdAt),
+    createdAt: new Date(doc.$createdAt),
   };
 }

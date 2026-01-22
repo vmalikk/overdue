@@ -63,7 +63,6 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       color: data.color || DEFAULTS.COURSE_COLOR,
       instructor: data.instructor,
       active: data.active !== undefined ? data.active : true,
-      createdAt: new Date(),
     }
 
     try {
