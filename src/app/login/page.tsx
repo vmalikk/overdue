@@ -16,6 +16,10 @@ function LoginContent() {
 
   // Check for error in URL params
   const urlError = searchParams.get('error')
+  
+  // Detect Safari
+  const isSafari = typeof navigator !== 'undefined' && 
+    /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
   // Redirect to home if already logged in
   useEffect(() => {
@@ -66,6 +70,11 @@ function LoginContent() {
         {(error || urlError) && (
           <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg mb-6">
             {error || 'Authentication failed. Please try again.'}
+            {urlError && isSafari && (
+              <p className="text-sm mt-2">
+                Safari blocks third-party cookies. Go to Settings → Safari → Privacy → disable "Prevent cross-site tracking", then try again.
+              </p>
+            )}
           </div>
         )}
 
