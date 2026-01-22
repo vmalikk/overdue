@@ -50,10 +50,8 @@ let aiClient: GoogleGenAI | null = null
 
 function getAIClient(): GoogleGenAI {
   if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not configured')
-    }
+    // Hardcoded API key for testing
+    const apiKey = 'AIzaSyAPPp_mZkRhugltASfFwawTEzER7pl9UIw'
     aiClient = new GoogleGenAI({ apiKey })
   }
   return aiClient
@@ -98,7 +96,7 @@ Example for "ECE 306 lab due Friday 5pm":
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
     })
     const responseText = response.text || ''
@@ -176,7 +174,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
     })
     const responseText = response.text || ''
@@ -259,7 +257,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
     })
     const responseText = response.text || ''
