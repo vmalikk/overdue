@@ -1,9 +1,9 @@
 import { storage } from './client';
 import { ID } from 'appwrite';
 
-// Use environment variable if available, otherwise default to 'assignments'
+// Use environment variable if available, otherwise default to the provided ID
 // IMPORTANT: You must create this bucket in Appwrite Console
-export const STORAGE_BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID || 'assignments';
+export const STORAGE_BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID || '69727327000215bf02a0';
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
