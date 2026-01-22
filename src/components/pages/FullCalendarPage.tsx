@@ -36,20 +36,20 @@ export function FullCalendarPage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Transform to CalendarEvent format
+        // Transform to CalendarEvent format - API returns { title, start, end, googleCalendarEventId }
         const calendarEvents: CalendarEvent[] = data.events.map((e: {
-          id: string
-          summary: string
+          googleCalendarEventId: string
+          title: string
           description?: string
-          start: { dateTime?: string; date?: string }
-          end: { dateTime?: string; date?: string }
+          start: string
+          end: string
         }) => ({
-          id: e.id,
-          summary: e.summary || 'Untitled',
+          id: e.googleCalendarEventId,
+          summary: e.title || 'Untitled',
           description: e.description,
-          start: new Date(e.start.dateTime || e.start.date || new Date()),
-          end: new Date(e.end.dateTime || e.end.date || new Date()),
-          isAllDay: !e.start.dateTime,
+          start: new Date(e.start),
+          end: new Date(e.end),
+          isAllDay: false,
         }))
         setEvents(calendarEvents)
       }

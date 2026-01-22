@@ -26,8 +26,9 @@ export function DailyCalendar() {
   const { getCourseById } = useCourseStore()
   const { events, setEvents, config } = useCalendarStore()
 
-  // Update current time every minute
+  // Update current time every minute (and immediately on mount)
   useEffect(() => {
+    setCurrentTime(new Date()) // Set immediately on mount
     const interval = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(interval)
   }, [])
