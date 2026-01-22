@@ -75,8 +75,15 @@ export function getWeekNumber(date: Date): number {
 // Get visible date range for calendar view
 export function getVisibleDateRange(
   currentDate: Date,
-  view: 'month' | 'week'
+  view: 'month' | 'week' | 'day'
 ): { start: Date; end: Date } {
+  if (view === 'day') {
+    return {
+      start: startOfDay(currentDate),
+      end: endOfDay(currentDate),
+    }
+  }
+
   if (view === 'week') {
     return {
       start: startOfWeek(currentDate, { weekStartsOn: 0 }),
