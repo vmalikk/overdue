@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/store/uiStore'
+import { CalendarSyncSection } from './CalendarSyncSection'
 
 export function SettingsPage() {
   const { showToast } = useUIStore()
@@ -154,7 +155,7 @@ export function SettingsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-primary">Google Calendar Sync</span>
-                <span className="px-2 py-1 bg-status-yellow/20 text-status-yellow text-xs rounded">Coming Soon</span>
+                <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
               </div>
             </div>
           </section>
@@ -162,39 +163,7 @@ export function SettingsPage() {
       )}
 
       {activeSection === 'sync' && (
-        <section className="bg-secondary border border-border rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Google Calendar Sync</h3>
-          
-          <div className="space-y-4">
-            <p className="text-text-muted">
-              Connect your Google Calendar to automatically sync assignments as calendar events.
-            </p>
-
-            <div className="p-4 bg-status-yellow/10 border border-status-yellow/30 rounded-lg">
-              <p className="text-sm text-status-yellow font-medium">Coming Soon</p>
-              <p className="text-sm text-text-muted mt-1">
-                Google Calendar integration is currently in development. You'll be able to:
-              </p>
-              <ul className="list-disc list-inside text-sm text-text-muted mt-2 space-y-1">
-                <li>Import events from Google Calendar as assignments</li>
-                <li>Export assignments to Google Calendar</li>
-                <li>Two-way sync to keep everything in sync</li>
-              </ul>
-            </div>
-
-            <div className="pt-4 border-t border-border">
-              <h4 className="font-medium text-text-primary mb-3">Setup Instructions (For Developers)</h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-text-muted">
-                <li>Visit <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a></li>
-                <li>Create a new project or select an existing one</li>
-                <li>Enable the Google Calendar API</li>
-                <li>Create OAuth 2.0 credentials (Web application type)</li>
-                <li>Add authorized redirect URI</li>
-                <li>Configure environment variables</li>
-              </ol>
-            </div>
-          </div>
-        </section>
+        <CalendarSyncSection />
       )}
     </div>
   )
