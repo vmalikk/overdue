@@ -14,9 +14,10 @@ import clsx from 'clsx'
 interface AssignmentRowProps {
   assignment: Assignment
   isMobile?: boolean
+  onClick?: () => void
 }
 
-export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowProps) {
+export function AssignmentRow({ assignment, isMobile = false, onClick }: AssignmentRowProps) {
   const { updateAssignment, deleteAssignment, completeAssignment, uncompleteAssignment } =
     useAssignmentStore()
   const { getCourseById } = useCourseStore()
@@ -39,7 +40,15 @@ export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowPro
     setIsEditing(false)
   }
 
-  const handleComplete = async () => {
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Only trigger if we are not editing and prop exists
+    if (onClick && !isEditing) {
+        onClick()
+    }
+  }
+
+  const handleComplete = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     try {
       if (isCompleted) {
         await uncompleteAssignment(assignment.id)
@@ -53,7 +62,8 @@ export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowPro
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (confirm(`Delete "${assignment.title}"?`)) {
       try {
         await deleteAssignment(assignment.id)
@@ -75,9 +85,10 @@ export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowPro
     return (
       <div
         className={clsx(
-          'bg-secondary border border-border rounded-lg p-4',
+          'bg-secondary border border-border rounded-lg p-4 cursor-pointer transition-colors hover:bg-background-secondary',
           isCompleted && 'opacity-60'
         )}
+        onClick={handleRowClick}
       >
         <div className="flex items-start gap-3">
           {/* Status & Complete */}
@@ -144,9 +155,10 @@ export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowPro
   return (
     <tr
       className={clsx(
-        'border-b border-border hover:bg-accent/30 transition-colors',
+        'border-b border-border hover:bg-accent/30 transition-colors cursor-pointer',
         isCompleted && 'opacity-60'
       )}
+      onClick={handleRowClick}
     >
       {/* Status Indicator */}
       <td className="px-4 py-3">
@@ -160,6 +172,7 @@ export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowPro
             type="text"
             value={editedTitle}
             onChange={(e) => setEditedTitle(e.target.value)}
+            onClick={(e) => e.stopPropagation()} // Prevent row click when clicking input
             onBlur={handleTitleEdit}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleTitleEdit()
@@ -172,15 +185,14 @@ export function AssignmentRow({ assignment, isMobile = false }: AssignmentRowPro
             autoFocus
           />
         ) : (
-          <button
-            onClick={() => setIsEditing(true)}
+          <span
             className={clsx(
-              'text-left text-text-primary hover:text-priority-medium transition-colors',
+              'text-left text-text-primary font-medium block',
               isCompleted && 'line-through'
             )}
           >
             {assignment.title}
-          </button>
+          </span>
         )}
         {assignment.description && (
           <p className="text-sm text-text-muted mt-1 line-clamp-1">

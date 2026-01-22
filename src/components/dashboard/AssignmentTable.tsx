@@ -1,13 +1,17 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { AssignmentRow } from './AssignmentRow'
+import { AssignmentDetailModal } from './AssignmentDetailModal'
+import { Assignment } from '@/types/assignment'
 import { Input } from '@/components/ui/Input'
 import clsx from 'clsx'
 
 export function AssignmentTable() {
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
+  
   const {
     filteredAssignments,
     loadAssignments,

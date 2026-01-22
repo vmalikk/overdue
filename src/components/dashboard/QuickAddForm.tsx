@@ -106,8 +106,8 @@ export function QuickAddForm() {
 
       showToast('Assignment added successfully', 'success')
       handleClose()
-    } catch (error) {
-      showToast('Failed to add assignment', 'error')
+    } catch (error: any) {
+      showToast(error.message || 'Failed to add assignment', 'error')
       console.error('Error adding assignment:', error)
     }
   }
@@ -144,8 +144,8 @@ export function QuickAddForm() {
 
       showToast('Assignment added successfully', 'success')
       handleClose()
-    } catch (error) {
-      showToast('Failed to add assignment', 'error')
+    } catch (error: any) {
+      showToast(error.message || 'Failed to add assignment', 'error')
       console.error('Error adding assignment:', error)
     }
   }
