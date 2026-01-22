@@ -81,8 +81,6 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
     const assignmentData = {
       ...data,
       status: AssignmentStatus.NOT_STARTED,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     }
 
     try {

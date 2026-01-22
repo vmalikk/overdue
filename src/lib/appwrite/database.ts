@@ -33,7 +33,7 @@ export async function getAssignment(id: string): Promise<Assignment | undefined>
   }
 }
 
-export async function addAssignment(assignment: Omit<Assignment, 'id'>, userId: string): Promise<Assignment> {
+export async function addAssignment(assignment: Omit<Assignment, 'id' | 'createdAt' | 'updatedAt'>, userId: string): Promise<Assignment> {
   const doc = await databases.createDocument(
     DATABASE_ID,
     ASSIGNMENTS_COLLECTION,
@@ -49,8 +49,6 @@ export async function addAssignment(assignment: Omit<Assignment, 'id'>, userId: 
       tags: assignment.tags || [],
       notes: assignment.notes || null,
       userId: userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
     }
   );
@@ -60,7 +58,6 @@ export async function addAssignment(assignment: Omit<Assignment, 'id'>, userId: 
 export async function updateAssignment(id: string, updates: Partial<Assignment>): Promise<Assignment> {
   const updateData: Record<string, unknown> = {
     ...updates,
-    updatedAt: new Date().toISOString(),
   };
   
   // Convert dates to ISO strings
@@ -70,13 +67,12 @@ export async function updateAssignment(id: string, updates: Partial<Assignment>)
   if (updates.completedAt) {
     updateData.completedAt = updates.completedAt instanceof Date ? updates.completedAt.toISOString() : updates.completedAt;
   }
-  if (updates.createdAt) {
-    updateData.createdAt = updates.createdAt instanceof Date ? updates.createdAt.toISOString() : updates.createdAt;
-  }
   
   // Remove fields that shouldn't be updated
   delete updateData.id;
   delete updateData.userId;
+  delete updateData.createdAt;
+  delete updateData.updatedAt;
   
   const doc = await databases.updateDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, id, updateData);
   return mapDocumentToAssignment(doc);
@@ -181,8 +177,8 @@ function mapDocumentToAssignment(doc: any): Assignment {
     estimatedHours: doc.estimatedHours,
     tags: doc.tags || [],
     notes: doc.notes,
-    createdAt: new Date(doc.createdAt),
-    updatedAt: new Date(doc.updatedAt),
+    createdAt: new Date(doc.$createdAt),
+    updatedAt: new Date(doc.$updatedAt),
     completedAt: doc.completedAt ? new Date(doc.completedAt) : undefined,
   };
 }
