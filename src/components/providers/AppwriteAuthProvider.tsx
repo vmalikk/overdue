@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { account } from '@/lib/appwrite/client'
 import { Models, OAuthProvider } from 'appwrite'
-import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -22,10 +21,8 @@ const AuthContext = createContext<AuthContextType>({
 export function AppwriteAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
-    // Check if user is already logged in
     checkUser()
   }, [])
 
@@ -33,10 +30,6 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     try {
       const currentUser = await account.get()
       setUser(currentUser)
-      // If on login page and user exists, redirect to home
-      if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
-        router.push('/')
-      }
     } catch (error) {
       setUser(null)
     } finally {

@@ -1,8 +1,8 @@
 import { Client, Account } from "appwrite";
 
 const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_VITE_ENDPOINT!)
-    .setProject(process.env.NEXT_PUBLIC_VITE_PROJECT_ID!);
+    .setEndpoint("https://nyc.cloud.appwrite.io/v1")
+    .setProject("6971c59b000e2766561b");
 
 const account = new Account(client);
 
