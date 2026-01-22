@@ -19,16 +19,16 @@ const HOURS = Array.from({ length: SCHEDULE_END_HOUR - SCHEDULE_START_HOUR + 1 }
 
 export function DailyCalendar() {
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
   const { data: session } = useSession()
   const { assignments } = useAssignmentStore()
   const { getCourseById } = useCourseStore()
   const { events, setEvents, config } = useCalendarStore()
 
-  // Update current time every minute (and immediately on mount)
+  // Update current time every minute (client-side only to avoid hydration mismatch)
   useEffect(() => {
-    setCurrentTime(new Date()) // Set immediately on mount
+    setCurrentTime(new Date())
     const interval = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(interval)
   }, [])
@@ -95,10 +95,12 @@ export function DailyCalendar() {
 
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
 
-  // Calculate position for current time indicator
-  const currentHour = getHours(currentTime)
-  const currentMinute = getMinutes(currentTime)
-  const currentTimePosition = ((currentHour - SCHEDULE_START_HOUR) * 60 + currentMinute) / ((SCHEDULE_END_HOUR - SCHEDULE_START_HOUR + 1) * 60) * 100
+  // Calculate position for current time indicator (only when currentTime is available)
+  const currentHour = currentTime ? getHours(currentTime) : 0
+  const currentMinute = currentTime ? getMinutes(currentTime) : 0
+  const currentTimePosition = currentTime 
+    ? ((currentHour - SCHEDULE_START_HOUR) * 60 + currentMinute) / ((SCHEDULE_END_HOUR - SCHEDULE_START_HOUR + 1) * 60) * 100
+    : null
 
   // Get assignments for a specific hour
   const getAssignmentsForHour = (hour: number) => {
@@ -217,7 +219,7 @@ export function DailyCalendar() {
       {/* Schedule Timeline */}
       <div className="relative max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
         {/* Current time indicator */}
-        {isToday && currentHour >= SCHEDULE_START_HOUR && currentHour <= SCHEDULE_END_HOUR && (
+        {isToday && currentTime && currentTimePosition !== null && currentHour >= SCHEDULE_START_HOUR && currentHour <= SCHEDULE_END_HOUR && (
           <div 
             className="absolute left-0 right-0 z-10 pointer-events-none"
             style={{ top: `${currentTimePosition}%` }}
@@ -234,8 +236,8 @@ export function DailyCalendar() {
           {HOURS.map((hour) => {
             const hourAssignments = getAssignmentsForHour(hour)
             const hourEvents = getEventsForHour(hour)
-            const isPastHour = isToday && hour < currentHour
-            const isCurrentHour = isToday && hour === currentHour
+            const isPastHour = isToday && currentTime && hour < currentHour
+            const isCurrentHour = isToday && currentTime && hour === currentHour
 
             return (
               <div
