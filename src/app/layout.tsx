@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { SessionProvider } from '@/components/providers/SessionProvider'
-import { SupabaseAuthProvider } from '@/components/providers/SupabaseAuthProvider'
+import { AppwriteAuthProvider } from '@/components/providers/AppwriteAuthProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -16,11 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background text-text-primary min-h-screen">
-        <SupabaseAuthProvider>
+        <AppwriteAuthProvider>
           <SessionProvider>
             {children}
           </SessionProvider>
-        </SupabaseAuthProvider>
+        </AppwriteAuthProvider>
       </body>
     </html>
   )

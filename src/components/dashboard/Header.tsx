@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { useAuth } from '@/components/providers/SupabaseAuthProvider'
+import { useAuth } from '@/components/providers/AppwriteAuthProvider'
 
 export function Header() {
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -42,14 +42,14 @@ export function Header() {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <p className="text-sm font-medium text-text-primary">
-                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                    {user.name || user.email?.split('@')[0]}
                   </p>
                   <p className="text-xs text-text-muted">{user.email}</p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
-                  {user.user_metadata?.avatar_url ? (
+                  {(user.prefs as Record<string, string>)?.avatar ? (
                     <img 
-                      src={user.user_metadata.avatar_url} 
+                      src={(user.prefs as Record<string, string>).avatar} 
                       alt="Profile" 
                       className="w-10 h-10 rounded-full"
                     />
