@@ -1,13 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
-import { format, startOfDay, endOfDay, addDays, subDays, getHours, getMinutes } from 'date-fns'
+import { useCalendarStore } from '@/store/calendarStore'
+import { format, startOfDay, endOfDay, addDays, subDays, getHours, getMinutes, parseISO } from 'date-fns'
 import { formatTime } from '@/lib/utils/dateUtils'
 import { calculateStatus } from '@/lib/utils/statusCalculator'
 import { CourseBadge } from '@/components/courses/CourseBadge'
 import clsx from 'clsx'
+import { CalendarEvent } from '@/types/calendar'
 
 // Hours to display in the schedule (6 AM to 11 PM)
 const SCHEDULE_START_HOUR = 6
@@ -17,14 +20,53 @@ const HOURS = Array.from({ length: SCHEDULE_END_HOUR - SCHEDULE_START_HOUR + 1 }
 export function DailyCalendar() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+  const { data: session } = useSession()
   const { assignments } = useAssignmentStore()
   const { getCourseById } = useCourseStore()
+  const { events, setEvents, config } = useCalendarStore()
 
   // Update current time every minute
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(interval)
   }, [])
+
+  // Fetch calendar events when date changes or when connected
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!session?.accessToken || !config.connected) return
+      
+      setIsLoadingEvents(true)
+      try {
+        const timeMin = startOfDay(selectedDate).toISOString()
+        const timeMax = endOfDay(selectedDate).toISOString()
+        
+        const response = await fetch(
+          `/api/calendar/events?calendarId=${config.calendarId || 'primary'}&timeMin=${timeMin}&timeMax=${timeMax}`
+        )
+        const data = await response.json()
+        
+        if (data.success && data.events) {
+          // Transform the events to CalendarEvent format
+          const calendarEvents: CalendarEvent[] = data.events.map((event: any) => ({
+            id: event.googleCalendarEventId || event.id,
+            summary: event.title,
+            start: new Date(event.deadline || event.start),
+            end: event.end ? new Date(event.end) : new Date(new Date(event.deadline || event.start).getTime() + 60 * 60 * 1000), // Default 1 hour
+            description: event.description,
+          }))
+          setEvents(calendarEvents)
+        }
+      } catch (error) {
+        console.error('Error fetching calendar events:', error)
+      } finally {
+        setIsLoadingEvents(false)
+      }
+    }
+    
+    fetchEvents()
+  }, [selectedDate, session?.accessToken, config.connected, config.calendarId, setEvents])
 
   const goToPreviousDay = () => setSelectedDate(subDays(selectedDate, 1))
   const goToNextDay = () => setSelectedDate(addDays(selectedDate, 1))
@@ -41,6 +83,15 @@ export function DailyCalendar() {
     })
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
 
+  // Get calendar events for selected date
+  const dayEvents = events.filter((event) => {
+    const eventStart = new Date(event.start)
+    return (
+      eventStart >= startOfDay(selectedDate) &&
+      eventStart <= endOfDay(selectedDate)
+    )
+  })
+
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
 
   // Calculate position for current time indicator
@@ -56,12 +107,28 @@ export function DailyCalendar() {
     })
   }
 
+  // Get calendar events for a specific hour
+  const getEventsForHour = (hour: number) => {
+    return dayEvents.filter((event) => {
+      const eventStart = new Date(event.start)
+      return getHours(eventStart) === hour
+    })
+  }
+
   const formatHour = (hour: number) => {
     if (hour === 0) return '12 AM'
     if (hour === 12) return '12 PM'
     if (hour < 12) return `${hour} AM`
     return `${hour - 12} PM`
   }
+
+  const formatEventTime = (start: Date, end: Date) => {
+    const startTime = format(new Date(start), 'h:mm a')
+    const endTime = format(new Date(end), 'h:mm a')
+    return `${startTime} - ${endTime}`
+  }
+
+  const totalItems = dayAssignments.length + dayEvents.length
 
   return (
     <div className="bg-secondary border border-border rounded-lg p-4">
@@ -124,11 +191,25 @@ export function DailyCalendar() {
       </div>
 
       {/* Summary */}
-      {dayAssignments.length > 0 && (
-        <div className="mb-3 px-2 py-1.5 bg-accent/50 rounded-md">
-          <p className="text-xs text-text-muted">
-            <span className="font-medium text-text-primary">{dayAssignments.length}</span> assignment{dayAssignments.length !== 1 ? 's' : ''} due today
-          </p>
+      {totalItems > 0 && (
+        <div className="mb-3 px-2 py-1.5 bg-accent/50 rounded-md flex items-center gap-3">
+          {dayEvents.length > 0 && (
+            <p className="text-xs text-text-muted">
+              <span className="font-medium text-blue-400">{dayEvents.length}</span> class{dayEvents.length !== 1 ? 'es' : ''}
+            </p>
+          )}
+          {dayAssignments.length > 0 && (
+            <p className="text-xs text-text-muted">
+              <span className="font-medium text-text-primary">{dayAssignments.length}</span> assignment{dayAssignments.length !== 1 ? 's' : ''} due
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Loading state */}
+      {isLoadingEvents && (
+        <div className="text-center py-2 mb-2">
+          <p className="text-xs text-text-muted">Loading calendar...</p>
         </div>
       )}
 
@@ -151,6 +232,7 @@ export function DailyCalendar() {
         <div className="space-y-0">
           {HOURS.map((hour) => {
             const hourAssignments = getAssignmentsForHour(hour)
+            const hourEvents = getEventsForHour(hour)
             const isPastHour = isToday && hour < currentHour
             const isCurrentHour = isToday && hour === currentHour
 
@@ -172,6 +254,36 @@ export function DailyCalendar() {
 
                 {/* Events */}
                 <div className="flex-1 py-1 pl-2 space-y-1">
+                  {/* Calendar Events (Classes) */}
+                  {hourEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="border-l-2 border-l-blue-500 bg-blue-500/10 rounded-r px-2 py-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-medium text-text-primary truncate">
+                              {event.summary}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-blue-400">
+                              {formatEventTime(event.start, event.end)}
+                            </span>
+                          </div>
+                          {event.description && (
+                            <p className="text-[10px] text-text-muted truncate mt-0.5">
+                              {event.description}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs">📅</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Assignments */}
                   {hourAssignments.map((assignment) => {
                     const course = getCourseById(assignment.courseId)
                     const status = calculateStatus(assignment)
@@ -203,7 +315,7 @@ export function DailyCalendar() {
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] text-text-muted">
-                                {formatTime(assignment.deadline)}
+                                Due {formatTime(assignment.deadline)}
                               </span>
                               {course && (
                                 <span 
@@ -233,7 +345,7 @@ export function DailyCalendar() {
       </div>
 
       {/* Empty state */}
-      {dayAssignments.length === 0 && (
+      {totalItems === 0 && !isLoadingEvents && (
         <div className="text-center py-8">
           <svg
             className="w-12 h-12 text-text-muted mx-auto mb-2"
@@ -249,8 +361,13 @@ export function DailyCalendar() {
             />
           </svg>
           <p className="text-sm text-text-muted">
-            {isToday ? 'No assignments due today!' : 'No assignments on this day'}
+            {isToday ? 'No events or assignments today!' : 'Nothing scheduled for this day'}
           </p>
+          {!config.connected && (
+            <p className="text-xs text-text-muted mt-1">
+              Connect Google Calendar to see your classes
+            </p>
+          )}
         </div>
       )}
     </div>

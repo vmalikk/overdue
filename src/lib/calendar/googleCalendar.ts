@@ -14,6 +14,8 @@ export interface ImportedEvent {
   title: string
   description?: string
   deadline: Date
+  start: Date
+  end: Date
   source: 'google_calendar'
   googleCalendarEventId: string
 }
@@ -76,6 +78,8 @@ export function eventsToImportFormat(events: CalendarEvent[]): ImportedEvent[] {
     title: event.summary,
     description: event.description,
     deadline: event.start,
+    start: event.start,
+    end: event.end,
     source: 'google_calendar' as const,
     googleCalendarEventId: event.id,
   }))

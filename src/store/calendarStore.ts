@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import { CalendarConfig, SyncState, SyncStatus, SyncConflict } from '@/types/calendar'
+import { CalendarConfig, SyncState, SyncStatus, SyncConflict, CalendarEvent } from '@/types/calendar'
 
 interface CalendarStore {
   // State
   config: CalendarConfig
   syncState: SyncState
+  events: CalendarEvent[]
 
   // Actions
   setConnected: (connected: boolean) => void
@@ -13,6 +14,11 @@ interface CalendarStore {
   setLastSync: (date: Date) => void
   setAutoSync: (enabled: boolean) => void
   setSyncInterval: (minutes: number) => void
+
+  // Event actions
+  setEvents: (events: CalendarEvent[]) => void
+  addEvent: (event: CalendarEvent) => void
+  clearEvents: () => void
 
   // Sync actions
   startSync: () => void
@@ -42,6 +48,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   // Initial state
   config: defaultConfig,
   syncState: defaultSyncState,
+  events: [],
 
   // Config actions
   setConnected: (connected: boolean) =>
@@ -73,6 +80,16 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set((state) => ({
       config: { ...state.config, syncInterval: minutes },
     })),
+
+  // Event actions
+  setEvents: (events: CalendarEvent[]) => set({ events }),
+  
+  addEvent: (event: CalendarEvent) =>
+    set((state) => ({
+      events: [...state.events, event],
+    })),
+  
+  clearEvents: () => set({ events: [] }),
 
   // Sync actions
   startSync: () =>
