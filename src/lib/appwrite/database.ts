@@ -48,6 +48,8 @@ export async function addAssignment(assignment: Omit<Assignment, 'id' | 'created
       estimatedHours: assignment.estimatedHours || null,
       tags: assignment.tags || [],
       notes: assignment.notes || null,
+      attachmentFileId: assignment.attachmentFileId || null,
+      attachmentFileName: assignment.attachmentFileName || null,
       userId: userId,
       completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
     }
@@ -177,6 +179,8 @@ function mapDocumentToAssignment(doc: any): Assignment {
     estimatedHours: doc.estimatedHours,
     tags: doc.tags || [],
     notes: doc.notes,
+    attachmentFileId: doc.attachmentFileId,
+    attachmentFileName: doc.attachmentFileName,
     createdAt: new Date(doc.$createdAt),
     updatedAt: new Date(doc.$updatedAt),
     completedAt: doc.completedAt ? new Date(doc.completedAt) : undefined,

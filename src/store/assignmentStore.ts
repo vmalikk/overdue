@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { Assignment, AssignmentStatus, Priority, AssignmentFormData } from '@/types/assignment'
 import * as db from '@/lib/appwrite/database'
+import { uploadFile } from '@/lib/appwrite/storage'
 
 interface AssignmentStore {
   // State
@@ -78,9 +79,31 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
     const { userId } = get()
     if (!userId) throw new Error('User not authenticated')
 
+    let attachmentData = {}
+    if (data.file) {
+      try {
+        const result = await uploadFile(data.file)
+        attachmentData = {
+          attachmentFileId: result.fileId,
+          attachmentFileName: result.fileName
+        }
+      } catch (error) {
+        console.error('Failed to upload file:', error)
+        // Continue without file or throw? The user might prefer it fails.
+        // For now, let's log and maybe toast or just fall through if not critical?
+        // Let's assume critical for now as they explicitly added it.
+        throw error
+      }
+    }
+
     const assignmentData = {
       ...data,
+      ...attachmentData,
       status: AssignmentStatus.NOT_STARTED,
+    }
+    // Remove the file object as it's not part of the Assignment type we send to DB
+    if ('file' in assignmentData) {
+      delete (assignmentData as any).file
     }
 
     try {

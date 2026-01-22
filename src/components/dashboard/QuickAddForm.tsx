@@ -16,6 +16,7 @@ import { useAIStore } from '@/store/aiStore'
 import { Priority } from '@/types/assignment'
 import { NLPParseResult } from '@/types/ai'
 import { DEFAULTS, LIMITS } from '@/config/constants'
+import { MAX_FILE_SIZE } from '@/lib/appwrite/storage'
 
 export function QuickAddForm() {
   const { isQuickAddOpen, closeQuickAdd, showToast } = useUIStore()
@@ -31,6 +32,7 @@ export function QuickAddForm() {
     priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
     estimatedHours: undefined as number | undefined,
     notes: '',
+    file: undefined as File | undefined,
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -135,6 +137,7 @@ export function QuickAddForm() {
         priority: formData.priority,
         estimatedHours: formData.estimatedHours,
         notes: formData.notes.trim() || undefined,
+        file: formData.file,
         aiParsed: !!parsedResult,
         aiConfidence: parsedResult?.confidence,
       })
@@ -274,6 +277,26 @@ export function QuickAddForm() {
           <p className="mt-1 text-xs text-text-muted">
             {formData.description.length} / {LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
           </p>
+        </div>
+
+        {/* File Upload */}
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1.5">
+            Attachment (max 10MB)
+          </label>
+          <Input
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file && file.size > MAX_FILE_SIZE) {
+                setErrors({ ...errors, file: 'File too large (max 10MB)' })
+                return
+              }
+              setErrors({ ...errors, file: '' })
+              setFormData({ ...formData, file: file })
+            }}
+            error={errors.file}
+          />
         </div>
 
         {/* Buttons */}

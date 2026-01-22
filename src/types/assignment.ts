@@ -27,6 +27,10 @@ export interface Assignment {
   estimatedHours?: number
   tags?: string[]
   notes?: string
+  
+  // Attachments
+  attachmentFileId?: string
+  attachmentFileName?: string
 
   // Metadata
   createdAt: Date
@@ -60,6 +64,7 @@ export interface AssignmentFormData {
   estimatedHours?: number
   tags?: string[]
   notes?: string
+  file?: File
   // AI fields (Phase 3)
   aiParsed?: boolean
   aiConfidence?: number
