@@ -55,7 +55,7 @@ export function createGeminiClient(): GenerativeModel {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  return genAI.getGenerativeModel({ model: 'gemini-pro' })
+  return genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' })
 }
 
 /**
