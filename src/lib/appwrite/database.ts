@@ -133,7 +133,7 @@ export async function getCourse(id: string): Promise<Course | undefined> {
   }
 }
 
-export async function addCourse(course: Omit<Course, 'id'>, userId: string): Promise<Course> {
+export async function addCourse(course: Omit<Course, 'id' | 'createdAt'>, userId: string): Promise<Course> {
   const doc = await databases.createDocument(
     DATABASE_ID,
     COURSES_COLLECTION,
