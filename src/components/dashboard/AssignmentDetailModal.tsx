@@ -178,11 +178,11 @@ export function AssignmentDetailModal({
         )}
 
         <div className="flex justify-end gap-2 pt-4 border-t border-border">
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
           <Button variant="primary" onClick={handleEdit}>
             Edit Assignment
+          </Button>
+          <Button variant="secondary" onClick={onClose}>
+            Close
           </Button>
         </div>
       </div>

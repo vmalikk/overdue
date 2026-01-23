@@ -78,7 +78,12 @@ export function QuickAddForm() {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [parsedResult, setParsedResult] = useState<NLPParseResult | null>(null)
-  const [showManualForm, setShowManualForm] = useState(false)
+  const [showManualForm, setShowManualForm] = useState(isEditing)
+
+  // Update showManualForm when editing mode changes
+  useEffect(() => {
+    setShowManualForm(isEditing)
+  }, [isEditing])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
