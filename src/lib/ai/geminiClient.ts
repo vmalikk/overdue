@@ -50,9 +50,11 @@ let aiClient: GoogleGenAI | null = null
 
 function getAIClient(): GoogleGenAI {
   if (!aiClient) {
-    // Hardcoded API key for testing
-    const apiKey = 'AIzaSyAPPp_mZkRhugltASfFwawTEzER7pl9UIw'
-    aiClient = new GoogleGenAI({ apiKey })
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is not set')
+    }
+    aiClient = new GoogleGenAI({ apiKey: apiKey })
   }
   return aiClient
 }
