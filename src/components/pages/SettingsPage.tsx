@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/store/uiStore'
 import { CalendarSyncSection } from './CalendarSyncSection'
 
 export function SettingsPage() {
-  const { showToast } = useUIStore()
+  const { showToast, apiKey, setApiKey } = useUIStore()
   const [isExporting, setIsExporting] = useState(false)
-  const [activeSection, setActiveSection] = useState<'general' | 'sync'>('general')
+  const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'ai'>('general')
+  const [inputKey, setInputKey] = useState('')
+  const [isKeyVisible, setIsKeyVisible] = useState(false)
+
+  // Sync apiKey to input when it changes or when section changes
+  useEffect(() => {
+    if (activeSection === 'ai') {
+      setInputKey(apiKey || '')
+    }
+  }, [activeSection, apiKey])
 
   const handleExport = async () => {
     setIsExporting(true)
@@ -37,6 +46,28 @@ export function SettingsPage() {
     }
   }
 
+  const handleSaveKey = () => {
+    if (!inputKey.trim()) {
+      showToast('Please enter a valid API key', 'error')
+      return
+    }
+
+    if (!inputKey.startsWith('AIza')) {
+      showToast('That doesn\'t look like a valid Gemini API key', 'warning')
+    }
+
+    setApiKey(inputKey)
+    showToast('API Key saved successfully!', 'success')
+  }
+
+  const handleClearKey = () => {
+    if (confirm('Are you sure you want to remove your API key? AI features will be disabled.')) {
+      setApiKey(null)
+      setInputKey('')
+      showToast('API Key removed', 'info')
+    }
+  }
+
   return (
     <div className="max-w-4xl space-y-6">
       {/* Header */}
@@ -48,12 +79,11 @@ export function SettingsPage() {
       </div>
 
       {/* Section Tabs */}
-      <div className="flex gap-2 border-b border-border">
+      <div className="flex gap-2 border-b border-border overflow-x-auto">
         <button
           onClick={() => setActiveSection('general')}
-          className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-            activeSection === 'general' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
-          }`}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'general' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
         >
           General
           {activeSection === 'general' && (
@@ -62,12 +92,21 @@ export function SettingsPage() {
         </button>
         <button
           onClick={() => setActiveSection('sync')}
-          className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-            activeSection === 'sync' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
-          }`}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'sync' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
         >
           Calendar Sync
           {activeSection === 'sync' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveSection('ai')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'ai' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
+        >
+          AI Configuration
+          {activeSection === 'ai' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
           )}
         </button>
@@ -151,7 +190,11 @@ export function SettingsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-primary">AI-Powered Parsing</span>
-                <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
+                {apiKey ? (
+                  <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active (BYOK)</span>
+                ) : (
+                  <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Pending Key</span>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-primary">Google Calendar Sync</span>
@@ -164,6 +207,56 @@ export function SettingsPage() {
 
       {activeSection === 'sync' && (
         <CalendarSyncSection />
+      )}
+
+      {activeSection === 'ai' && (
+        <section className="bg-secondary border border-border rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">Gemini API Configuration</h3>
+          <p className="text-sm text-text-muted mb-6">
+            To enable AI features like parsing natural language and generating study tips, you need to provide your own Google Gemini API Key.
+            <br />
+            The key is stored locally on your device and is never saved to our servers.
+          </p>
+
+          <div className="space-y-4 max-w-xl">
+            <div>
+              <label htmlFor="apiKey" className="block text-sm font-medium text-text-primary mb-1">
+                API Key
+              </label>
+              <div className="relative">
+                <input
+                  id="apiKey"
+                  type={isKeyVisible ? "text" : "password"}
+                  value={inputKey}
+                  onChange={(e) => setInputKey(e.target.value)}
+                  placeholder="AIza..."
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsKeyVisible(!isKeyVisible)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary"
+                >
+                  {isKeyVisible ? "Hide" : "Show"}
+                </button>
+              </div>
+              <p className="text-xs text-text-muted mt-2">
+                Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get one from Google AI Studio</a> (it's free).
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="primary" onClick={handleSaveKey}>
+                Save API Key
+              </Button>
+              {apiKey && (
+                <Button variant="danger" onClick={handleClearKey}>
+                  Remove Key
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
       )}
     </div>
   )

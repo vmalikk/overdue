@@ -3,12 +3,10 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
-import { useUIStore } from '@/store/uiStore'
 
 export function Header() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const { user, signOut, loading } = useAuth()
-  const { openSettings } = useUIStore()
 
   // Update time every second for real-time display
   useEffect(() => {
@@ -54,7 +52,7 @@ export function Header() {
                   </div>
                   {/* Settings Button Mobile */}
                   <button
-                    onClick={openSettings}
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                     className="p-2 text-text-muted hover:text-text-primary hover:bg-accent rounded-lg transition-colors"
                   >
                     <span className="text-xl">⚙️</span>
@@ -122,7 +120,7 @@ export function Header() {
 
               {/* Settings Button */}
               <button
-                onClick={openSettings}
+                onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                 className="p-2 rounded-full hover:bg-secondary text-text-muted hover:text-text-primary transition-colors"
                 title="Settings"
               >

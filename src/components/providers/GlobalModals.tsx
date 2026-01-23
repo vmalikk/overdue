@@ -1,11 +1,11 @@
 'use client'
 
-import { SettingsModal } from '@/components/dashboard/SettingsModal'
+
 
 export function GlobalModals() {
     return (
         <>
-            <SettingsModal />
+            {/* Add other global modals here */}
         </>
     )
 }
