@@ -7,17 +7,56 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns
 import { calculateStatus } from '@/lib/utils/statusCalculator'
 import clsx from 'clsx'
 
-export function MiniCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date())
+interface MiniCalendarProps {
+  value?: Date
+  onChange?: (date: Date) => void
+  disabled?: boolean
+}
+
+export function MiniCalendar({ value, onChange, disabled }: MiniCalendarProps) {
+  const [internalDate, setInternalDate] = useState(new Date())
   const { assignments, setFilterDateRange } = useAssignmentStore()
 
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
+  // Sync internal state with prop if provided
+  useEffect(() => {
+    if (value) {
+       setInternalDate(value)
+    }
+  }, [value])
+
+  // Use either controlled or internal date for navigation (month view)
+  // For selection, if controlled, we call onChange.
+  const displayDate = value || internalDate
+
+  const year = displayDate.getFullYear()
+  const month = displayDate.getMonth()
   const dates = getCalendarDates(year, month)
   const today = new Date()
 
-  const previousMonth = () => setCurrentDate(subMonths(currentDate, 1))
-  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
+  const previousMonth = () => {
+     const newDate = subMonths(displayDate, 1)
+     if (!value) setInternalDate(newDate)
+     // Typically onChange is for selection, not month nav, but if we want the parent to track month:
+     // For now, let's keep nav internal to the calendar unless we want to change parent month
+     // If value is provided, we might assume parent controls everything.
+     // But usually MiniCalendar navigates months independently until a day is clicked.
+     // Let's keep month navigation separate from selection value.
+     setInternalDate(newDate) 
+  }
+  
+  const nextMonth = () => {
+     setInternalDate(addMonths(displayDate, 1))
+  }
+
+  // Handle day click
+  const handleDateClick = (date: Date) => {
+     if (onChange) {
+        onChange(date)
+     } else {
+        setFilterDateRange({ start: startOfDay(date), end: endOfDay(date) })
+     }
+  }
+
 
   // Get assignments for each date
   const getAssignmentsForDate = (date: Date) => {
@@ -81,7 +120,7 @@ export function MiniCalendar() {
         </button>
 
         <h3 className="text-sm font-semibold text-text-primary">
-          {format(currentDate, 'MMMM yyyy')}
+          {format(displayDate, 'MMMM yyyy')}
         </h3>
 
         <button
@@ -117,11 +156,13 @@ export function MiniCalendar() {
         {dates.map((date, index) => {
           const isCurrentMonth = date.getMonth() === month
           const isToday = isSameDay(date, today)
+          const isSelected = value && isSameDay(date, value)
+          
           const dateAssignments = getAssignmentsForDate(date)
           const hasAssignments = dateAssignments.length > 0
           const indicator = getDateIndicator(date)
 
-          const indicatorColors = {
+          const indicatorColors: Record<string, string> = {
             red: 'bg-status-red',
             yellow: 'bg-status-yellow',
             green: 'bg-status-green',
@@ -138,9 +179,10 @@ export function MiniCalendar() {
                 isCurrentMonth
                   ? 'text-text-primary hover:bg-accent cursor-pointer'
                   : 'text-text-muted cursor-default',
-                isToday && 'border-2 border-priority-medium'
+                isToday && !isSelected && 'border-2 border-priority-medium',
+                isSelected && 'bg-primary text-secondary font-bold hover:bg-primary/90'
               )}
-              disabled={!isCurrentMonth}
+              disabled={!isCurrentMonth || disabled}
               title={
                 hasAssignments
                   ? `${dateAssignments.length} assignment${dateAssignments.length !== 1 ? 's' : ''}`
@@ -150,7 +192,7 @@ export function MiniCalendar() {
               <span>{format(date, 'd')}</span>
 
               {/* Colored dot indicator */}
-              {indicator && (
+              {indicator && !isSelected && (
                 <div
                   className={clsx(
                     'absolute bottom-0.5 w-1 h-1 rounded-full',

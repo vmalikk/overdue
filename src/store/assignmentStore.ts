@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { Assignment, AssignmentStatus, Priority, AssignmentFormData } from '@/types/assignment'
 import * as db from '@/lib/appwrite/database'
 import { uploadFile } from '@/lib/appwrite/storage'
+import { useCalendarStore } from './calendarStore'
 
 interface AssignmentStore {
   // State
@@ -67,6 +68,31 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       const assignments = await db.getAllAssignments(userId)
       set({ assignments })
       get().applyFilters()
+
+      // Auto-sync check (Daily)
+      const { config, setLastSync } = useCalendarStore.getState()
+      if (config.connected && config.autoSync) {
+         const lastSync = config.lastSync ? new Date(config.lastSync) : null
+         const now = new Date()
+         const oneDay = 24 * 60 * 60 * 1000
+         
+         if (!lastSync || (now.getTime() - lastSync.getTime() > oneDay)) {
+             fetch('/api/calendar/sync', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                     assignments,
+                     calendarId: config.calendarId || 'primary',
+                     direction: 'both'
+                 })
+             }).then(res => {
+                 if (res.ok) {
+                    setLastSync(new Date())
+                    console.log('Daily auto-sync completed')
+                 }
+             }).catch(e => console.error('Auto-sync failed', e))
+         }
+      }
     } catch (error) {
       console.error('Failed to load assignments:', error)
     } finally {
@@ -112,6 +138,21 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
         assignments: [...state.assignments, assignment],
       }))
       get().applyFilters()
+
+      // Instant Sync (Push to Calendar)
+      const { config } = useCalendarStore.getState()
+      if (config.connected) {
+         fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                assignments: [assignment],
+                calendarId: config.calendarId || 'primary',
+                direction: 'export'
+            })
+         }).catch(err => console.error('Instant sync failed', err))
+      }
+
       return assignment
     } catch (error) {
       console.error('Failed to add assignment:', error)
@@ -129,6 +170,23 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
         ),
       }))
       get().applyFilters()
+      
+      // Instant Sync (Update)
+      const { config } = useCalendarStore.getState()
+      if (config.connected) {
+         const updatedAssignment = get().assignments.find(a => a.id === id)
+         if (updatedAssignment) {
+             fetch('/api/calendar/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    assignments: [updatedAssignment],
+                    calendarId: config.calendarId || 'primary',
+                    direction: 'export'
+                })
+             }).catch(err => console.error('Instant sync update failed', err))
+         }
+      }
     } catch (error) {
       console.error('Failed to update assignment:', error)
       throw error

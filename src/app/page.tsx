@@ -15,12 +15,24 @@ import { SettingsPage } from '@/components/pages/SettingsPage'
 import { StatisticsPage } from '@/components/pages/StatisticsPage'
 import { FullCalendarPage } from '@/components/pages/FullCalendarPage'
 import { ToastContainer } from '@/components/ui/Toast'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
+import { useUIStore } from '@/store/uiStore'
+import { useEffect } from 'react'
 
 export default function Dashboard() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard')
   const { user, loading } = useAuth()
+  const { openQuickAdd } = useUIStore()
   const router = useRouter()
+  
+  // Listen for open-settings event
+  useEffect(() => {
+    const handleOpenSettings = () => setCurrentTab('settings')
+    window.addEventListener('open-settings', handleOpenSettings)
+    return () => window.removeEventListener('open-settings', handleOpenSettings)
+  }, [])
 
   // Redirect to login if not authenticated
   if (!loading && !user) {
@@ -71,7 +83,12 @@ export default function Dashboard() {
           {/* Assignments Tab */}
           {currentTab === 'assignments' && (
              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-text-primary">All Assignments</h2>
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-text-primary">All Assignments</h2>
+                  <Button variant="primary" onClick={openQuickAdd}>
+                    Add Assignment
+                  </Button>
+                </div>
                 <AssignmentTable filterStatus="all" filterTime="all" />
              </div>
           )}
@@ -80,13 +97,18 @@ export default function Dashboard() {
           {currentTab === 'statistics' && <StatisticsPage />}
 
           {/* Full Calendar Tab */}
-          {currentTab === 'fullcalendar' && <FullCalendarPage />}
+          {currentTab === 'calendar' && <FullCalendarPage />}
 
           {/* Courses Tab */}
           {currentTab === 'courses' && <CourseManager />}
 
-          {/* Settings Tab */}
-          {currentTab === 'settings' && <SettingsPage />}
+          {/* Settings Overlay - handled via Header event */}
+          {/* We'll handle settings visibility via local state if needed, or simply render it conditionally 
+              based on a new state variable if we want it to overlay everything. 
+              However, the simplest approach for now is to keep it renderable if switched to, 
+              but since we removed the tab, we need a way to show it. 
+              Let's add a state for valid 'settings' viewing. 
+          */}
         </main>
 
         {/* Floating Add Button (only on dashboard) */}
@@ -94,6 +116,16 @@ export default function Dashboard() {
 
         {/* Modals */}
         <QuickAddForm />
+        
+        {/* Settings Modal/Overlay */}
+        <Modal 
+          isOpen={currentTab === 'settings'} 
+          onClose={() => setCurrentTab('dashboard')} 
+          title="Settings"
+          size="lg"
+        >
+           <SettingsPage />
+        </Modal>
       </div>
 
       {/* Toast notifications */}

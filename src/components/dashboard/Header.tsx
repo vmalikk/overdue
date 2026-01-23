@@ -50,6 +50,13 @@ export function Header() {
                       user.email?.charAt(0).toUpperCase()
                     )}
                   </div>
+                  {/* Settings Button Mobile */}
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                    className="p-2 text-text-muted hover:text-text-primary hover:bg-accent rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">⚙️</span>
+                  </button>
                   <button
                     onClick={signOut}
                     className="p-2 text-text-muted hover:text-text-primary hover:bg-accent rounded-lg transition-colors"
@@ -83,7 +90,7 @@ export function Header() {
                       className="w-10 h-10 rounded-full"
                     />
                   ) : (
-                    user.email?.charAt(0).toUpperCase()
+                     user.email?.charAt(0).toUpperCase()
                   )}
                 </div>
                 <button
@@ -99,15 +106,29 @@ export function Header() {
             )}
 
             {/* Date & Time Section */}
-            <div className="text-right">
-              <div className="text-2xl font-semibold text-text-primary mb-1 font-mono tracking-wide">
-                {time}
+            <div className="text-right flex items-center gap-4">
+              <div>
+                <div className="text-2xl font-semibold text-text-primary mb-1 font-mono tracking-wide">
+                  {time}
+                </div>
+                <div className="text-sm text-text-secondary">
+                  <span className="font-medium">{dayOfWeek}</span>
+                  <span className="mx-2">•</span>
+                  <span>{date}</span>
+                </div>
               </div>
-              <div className="text-sm text-text-secondary">
-                <span className="font-medium">{dayOfWeek}</span>
-                <span className="mx-2">•</span>
-                <span>{date}</span>
-              </div>
+              
+              {/* Settings Button */}
+              <button 
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                  className="p-2 rounded-full hover:bg-secondary text-text-muted hover:text-text-primary transition-colors"
+                  title="Settings"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+              </button>
             </div>
           </div>
 
