@@ -3,8 +3,8 @@ import { Assignment, AssignmentStatus, Priority, AssignmentCategory } from '@/ty
 import { Course } from '@/types/course';
 
 const client = new Client()
-    .setEndpoint("https://nyc.cloud.appwrite.io/v1")
-    .setProject("6971c59b000e2766561b");
+  .setEndpoint("https://nyc.cloud.appwrite.io/v1")
+  .setProject("6971c59b000e2766561b");
 
 const databases = new Databases(client);
 
@@ -53,6 +53,8 @@ export async function addAssignment(assignment: Omit<Assignment, 'id' | 'created
       attachmentFileName: assignment.attachmentFileName || null,
       userId: userId,
       completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
+      googleCalendarEventId: assignment.googleCalendarEventId || null,
+      calendarSynced: assignment.calendarSynced || false
     }
   );
   return mapDocumentToAssignment(doc);
@@ -62,7 +64,7 @@ export async function updateAssignment(id: string, updates: Partial<Assignment>)
   const updateData: Record<string, unknown> = {
     ...updates,
   };
-  
+
   // Convert dates to ISO strings
   if (updates.deadline) {
     updateData.deadline = updates.deadline instanceof Date ? updates.deadline.toISOString() : updates.deadline;
@@ -70,13 +72,13 @@ export async function updateAssignment(id: string, updates: Partial<Assignment>)
   if (updates.completedAt) {
     updateData.completedAt = updates.completedAt instanceof Date ? updates.completedAt.toISOString() : updates.completedAt;
   }
-  
+
   // Remove fields that shouldn't be updated
   delete updateData.id;
   delete updateData.userId;
   delete updateData.createdAt;
   delete updateData.updatedAt;
-  
+
   const doc = await databases.updateDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, id, updateData);
   return mapDocumentToAssignment(doc);
 }
@@ -155,7 +157,7 @@ export async function addCourse(course: Omit<Course, 'id' | 'createdAt'>, userId
 
 export async function updateCourse(id: string, updates: Partial<Course>): Promise<Course> {
   const updateData: Record<string, unknown> = { ...updates };
-  
+
   if (updates.officeHours) {
     updateData.officeHours = JSON.stringify(updates.officeHours);
   }
@@ -167,7 +169,7 @@ export async function updateCourse(id: string, updates: Partial<Course>): Promis
   delete updateData.id;
   delete updateData.userId;
   delete updateData.createdAt;
-  
+
   const doc = await databases.updateDocument(DATABASE_ID, COURSES_COLLECTION, id, updateData);
   return mapDocumentToCourse(doc);
 }
@@ -197,6 +199,8 @@ function mapDocumentToAssignment(doc: any): Assignment {
     createdAt: new Date(doc.$createdAt),
     updatedAt: new Date(doc.$updatedAt),
     completedAt: doc.completedAt ? new Date(doc.completedAt) : undefined,
+    googleCalendarEventId: doc.googleCalendarEventId,
+    calendarSynced: doc.calendarSynced
   };
 }
 

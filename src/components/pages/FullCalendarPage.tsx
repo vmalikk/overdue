@@ -147,12 +147,55 @@ export function FullCalendarPage() {
     fetchCalendarEvents()
   }, [fetchCalendarEvents])
 
-  // Combine remote events with course office hours
+  // Process assignments: Separate "Tasks" from "Events"
+  const { taskAssignments, dbEvents } = useMemo(() => {
+    const tasks: typeof assignments = []
+    const dbEvts: CalendarEvent[] = []
+
+    assignments.forEach(a => {
+      if (a.category === 'event') {
+        // Parse end time from notes if available
+        let endTime = new Date(new Date(a.deadline).getTime() + 60 * 60 * 1000) // Default 1h
+        try {
+          if (a.notes) {
+            const parsed = JSON.parse(a.notes)
+            if (parsed.end) {
+              endTime = new Date(parsed.end)
+            }
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+
+        dbEvts.push({
+          id: a.id,
+          summary: a.title,
+          description: a.description,
+          start: a.deadline,
+          end: endTime,
+          color: '#8e24aa', // Purple for internal DB events
+          type: 'event', // treat as event
+          assignmentId: a.id // link back if needed
+        })
+      } else {
+        tasks.push(a)
+      }
+    })
+    return { taskAssignments: tasks, dbEvents: dbEvts }
+  }, [assignments])
+
+  // Combine remote events, DB events, and course office hours
   const allEvents = useMemo(() => {
     const { start, end } = getVisibleDateRange(currentDate, view)
     const officeHours = getOfficeHourEvents(courses, start, end)
-    return [...events, ...officeHours]
-  }, [currentDate, view, courses, events])
+
+    // Deduplication logic (Optional):
+    // If we have a Google Event (blue) and a DB Event (purple) with same googleCalendarEventId,
+    // which one do we show? For now show both to confirm import worked, or filter?
+    // Let's show both but maybe DB events are clearer "Imported" ones.
+
+    return [...events, ...dbEvents, ...officeHours]
+  }, [currentDate, view, courses, events, dbEvents])
 
   // Navigation handlers
   const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
@@ -192,7 +235,7 @@ export function FullCalendarPage() {
 
   // Get assignments and events for selected date
   const selectedDateAssignments = selectedDate
-    ? getAssignmentsForDate(assignments, selectedDate)
+    ? getAssignmentsForDate(taskAssignments, selectedDate)
     : []
   const selectedDateEvents = selectedDate
     ? getEventsForDate(allEvents, selectedDate)
@@ -248,7 +291,7 @@ export function FullCalendarPage() {
             <MonthView
               year={year}
               month={month}
-              assignments={assignments}
+              assignments={taskAssignments}
               events={allEvents}
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
@@ -257,7 +300,7 @@ export function FullCalendarPage() {
           {view === 'week' && (
             <GoogleStyleWeekView
               currentDate={currentDate}
-              assignments={assignments}
+              assignments={taskAssignments}
               events={allEvents}
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
@@ -266,7 +309,7 @@ export function FullCalendarPage() {
           {view === 'day' && (
             <DayView
               currentDate={currentDate}
-              assignments={assignments}
+              assignments={taskAssignments}
               events={allEvents}
             />
           )}
