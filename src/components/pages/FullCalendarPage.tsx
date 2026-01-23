@@ -31,36 +31,52 @@ export function FullCalendarPage() {
   const [view, setView] = useState<CalendarViewType>('week')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  
+
   // Multi-calendar state
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([])
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true)
 
-  // Fetch available calendars list
+  // Persist selectedCalendarIds to localStorage on change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedCalendarIds', JSON.stringify(selectedCalendarIds))
+    }
+  }, [selectedCalendarIds])
+
+  // Fetch available calendars list and restore selectedCalendarIds from localStorage
   useEffect(() => {
     async function getCalendars() {
       if (!session?.accessToken) {
          setConnected(false)
          return
       }
-      setConnected(true) // Helper synchronizer
+      setConnected(true)
       try {
         const res = await fetch('/api/calendar/calendars')
         const data = await res.json()
         if (data.success) {
-           // Map to our interface (API returns {id, summary, backgroundColor})
-           // The previous fetchCalendars in SyncSection used id, name for mapping
-           // Let's assume the API returns standard Google Calendar List Resource fields or just id/name.
-           // We'll trust the API returns sensible data.
            const mapped = data.calendars.map((c: any) => ({
              id: c.id,
              name: c.name || c.summary || 'Untitled',
              backgroundColor: c.backgroundColor || c.color || '#4285F4'
            }))
            setCalendars(mapped)
-           // Default select the primary one if none selected
-           if (selectedCalendarIds.length === 0 && mapped.length > 0) {
+           // Restore selectedCalendarIds from localStorage if available and valid
+           const stored = typeof window !== 'undefined' ? localStorage.getItem('selectedCalendarIds') : null
+           let restored: string[] = []
+           if (stored) {
+             try {
+               const parsed = JSON.parse(stored)
+               if (Array.isArray(parsed)) {
+                 // Only keep ids that exist in mapped
+                 restored = parsed.filter((id: string) => mapped.some((c: any) => c.id === id))
+               }
+             } catch {}
+           }
+           if (restored.length > 0) {
+             setSelectedCalendarIds(restored)
+           } else if (mapped.length > 0) {
              const primary = mapped.find((c: any) => c.primary) || mapped[0]
              setSelectedCalendarIds([primary.id])
            }
@@ -72,7 +88,7 @@ export function FullCalendarPage() {
     if (config.connected) {
        getCalendars()
     }
-  }, [config.connected, session?.accessToken, setConnected]) // Removed selectedCalendarIds dependency loop
+  }, [config.connected, session?.accessToken, setConnected])
 
   const toggleCalendar = (id: string) => {
     setSelectedCalendarIds(prev => 
