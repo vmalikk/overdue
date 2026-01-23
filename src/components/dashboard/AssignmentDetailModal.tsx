@@ -8,7 +8,9 @@ import { useCourseStore } from '@/store/courseStore'
 import { useUIStore } from '@/store/uiStore'
 import { CourseBadge } from '@/components/courses/CourseBadge'
 import { getFileDownloadUrl } from '@/lib/appwrite/storage'
+
 import { format } from 'date-fns'
+import { StudyTips } from '@/components/ai/StudyTips'
 
 interface AssignmentDetailModalProps {
   assignment: Assignment | null
@@ -133,6 +135,18 @@ export function AssignmentDetailModal({
               </div>
             )}
           </div>
+        </div>
+
+        {/* AI Study Tips */}
+        <div className="border-t border-border pt-4 mt-2">
+          <StudyTips
+            assignmentId={assignment.id}
+            title={assignment.title}
+            description={assignment.description}
+            courseCode={course?.code}
+            deadline={new Date(assignment.deadline)}
+            estimatedHours={assignment.estimatedHours}
+          />
         </div>
 
         {/* Attachments Section */}
