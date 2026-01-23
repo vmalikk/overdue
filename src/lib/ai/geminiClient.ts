@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import { NLPParseResult, StudyTipsResponse, DeadlineSuggestion } from '@/types/ai'
+import { NLPParseResult, StudyTipsResponse, DeadlineSuggestion, ParsedSyllabus } from '@/types/ai'
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -301,3 +301,76 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
     }
   }
 }
+
+/**
+ * Parse syllabus PDF/text to extract course details
+ */
+export async function parseSyllabus(fileBase64: string, mimeType: string = 'application/pdf'): Promise<ParsedSyllabus> {
+  const ai = getAIClient()
+
+  const prompt = `You are a syllabus parser. Extract the following information from the syllabus document provided.
+
+Return a JSON object with:
+- courseCode: string | null (e.g. "ECE 306")
+- courseName: string | null (e.g. "Embedded Systems")
+- instructor: string | null (Name of the professor/instructor)
+- professorEmail: string | null
+- officeHours: { day: string, startTime: string, endTime: string, location: string }[] | null
+  - normalize days to full names like "Monday", "Tuesday"
+  - normalize times to 24hr format "HH:MM"
+  - if location is unknown, use "TBD" or infer from context if confident
+- gradeWeights: { category: string, weight: number }[] | null
+  - weight should be a number representing percentage (e.g. 20 for 20%)
+- description: string | null (brief course description)
+
+IMPORTANT: Return ONLY valid JSON, no markdown.`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: fileBase64
+              }
+            }
+          ]
+        }
+      ]
+    })
+    
+    const responseText = response.text || ''
+    
+    let jsonStr = responseText
+    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim()
+    }
+    
+    jsonStr = jsonStr.trim()
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim()
+    }
+
+    const parsed = JSON.parse(jsonStr)
+    
+    return {
+      courseCode: parsed.courseCode,
+      courseName: parsed.courseName,
+      instructor: parsed.instructor,
+      professorEmail: parsed.professorEmail,
+      officeHours: parsed.officeHours,
+      gradeWeights: parsed.gradeWeights,
+      description: parsed.description,
+    }
+  } catch (error) {
+    console.error('Error parsing syllabus:', error)
+    throw new Error('Failed to parse syllabus')
+  }
+}
+

@@ -1,5 +1,6 @@
-import { format, startOfWeek, endOfWeek, addDays, startOfDay, endOfDay, isSameMonth, getWeek } from 'date-fns'
+import { format, startOfWeek, endOfWeek, addDays, startOfDay, endOfDay, isSameMonth, getWeek, parse, set } from 'date-fns'
 import { Assignment } from '@/types/assignment'
+import { Course } from '@/types/course'
 
 // Calendar event from Google Calendar (simplified for display)
 export interface CalendarEvent {
@@ -9,6 +10,8 @@ export interface CalendarEvent {
   start: Date
   end: Date
   isAllDay?: boolean
+  color?: string
+  type?: 'event' | 'assignment' | 'office-hour'
 }
 
 // Get week dates (Sunday to Saturday)
@@ -191,3 +194,54 @@ export function getEventsForDate(
 // Day names for calendar header
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const DAY_NAMES_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+export function getOfficeHourEvents(courses: Course[], rangeStart: Date, rangeEnd: Date): CalendarEvent[] {
+  const events: CalendarEvent[] = []
+  
+  // Normalize range
+  const start = startOfDay(rangeStart)
+  const end = endOfDay(rangeEnd)
+
+  // Loop through each day in range
+  let current = start
+  while (current <= end) {
+    const dayName = format(current, 'EEEE') // Full day name "Monday"
+
+    courses.forEach(course => {
+      if (course.officeHours && course.active) {
+        course.officeHours.forEach(oh => {
+           // Basic fuzzy match for day name
+           if (oh.day.toLowerCase() === dayName.toLowerCase()) {
+              try {
+                  // Parse times
+                  // oh.startTime is "HH:MM" e.g. "14:00"
+                  const [startHour, startMin] = oh.startTime.split(':').map(Number)
+                  const [endHour, endMin] = oh.endTime.split(':').map(Number)
+                  
+                  if (!isNaN(startHour) && !isNaN(endHour)) {
+                      const eventStart = set(current, { hours: startHour, minutes: startMin })
+                      const eventEnd = set(current, { hours: endHour, minutes: endMin })
+                      
+                      events.push({
+                          id: `oh-${course.id}-${current.getTime()}-${oh.startTime}`,
+                          summary: `OH: ${course.code}`,
+                          description: `${course.name} Office Hours\nLocation: ${oh.location}`,
+                          start: eventStart,
+                          end: eventEnd,
+                          color: course.color,
+                          type: 'office-hour'
+                      })
+                  }
+              } catch (e) {
+                  // Ignore parsing errors
+              }
+           }
+        })
+      }
+    })
+    
+    current = addDays(current, 1)
+  }
+  
+  return events
+}

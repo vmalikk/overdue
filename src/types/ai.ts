@@ -91,3 +91,22 @@ export interface RateLimitState {
   lastReset: Date
   isLimited: boolean
 }
+
+// Parsed syllabus data from Gemini
+export interface ParsedSyllabus {
+  courseCode?: string
+  courseName?: string
+  instructor?: string
+  professorEmail?: string
+  officeHours?: Array<{
+    day: string
+    startTime: string
+    endTime: string
+    location: string
+  }>
+  gradeWeights?: Array<{
+    category: string
+    weight: number
+  }>
+  description?: string
+}

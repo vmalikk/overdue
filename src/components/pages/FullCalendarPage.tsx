@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfDay, endOfDay } from 'date-fns'
 import { useSession } from 'next-auth/react'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCalendarStore } from '@/store/calendarStore'
-import { getVisibleDateRange, getAssignmentsForDate, getEventsForDate, CalendarEvent } from '@/lib/utils/calendarUtils'
+import { useCourseStore } from '@/store/courseStore'
+import { getVisibleDateRange, getAssignmentsForDate, getEventsForDate, CalendarEvent, getOfficeHourEvents } from '@/lib/utils/calendarUtils'
 import { GoogleStyleCalendarHeader, CalendarViewType } from '@/components/calendar/GoogleStyleCalendarHeader'
 import { MonthView } from '@/components/calendar/MonthView'
 import { GoogleStyleWeekView } from '@/components/calendar/GoogleStyleWeekView'
@@ -16,6 +17,7 @@ export function FullCalendarPage() {
   const { data: session } = useSession()
   const { assignments } = useAssignmentStore()
   const { config, events, setEvents } = useCalendarStore()
+  const { courses } = useCourseStore()
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<CalendarViewType>('week')
@@ -71,6 +73,13 @@ export function FullCalendarPage() {
     fetchCalendarEvents()
   }, [fetchCalendarEvents])
 
+  // Combine remote events with course office hours
+  const allEvents = useMemo(() => {
+    const { start, end } = getVisibleDateRange(currentDate, view)
+    const officeHours = getOfficeHourEvents(courses, start, end)
+    return [...events, ...officeHours]
+  }, [currentDate, view, courses, events])
+
   // Navigation handlers
   const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
     if (direction === 'today') {
@@ -108,7 +117,7 @@ export function FullCalendarPage() {
     ? getAssignmentsForDate(assignments, selectedDate)
     : []
   const selectedDateEvents = selectedDate
-    ? getEventsForDate(events, selectedDate)
+    ? getEventsForDate(allEvents, selectedDate)
     : []
 
   const year = currentDate.getFullYear()
@@ -150,7 +159,7 @@ export function FullCalendarPage() {
               year={year}
               month={month}
               assignments={assignments}
-              events={events}
+              events={allEvents}
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
             />
@@ -159,7 +168,7 @@ export function FullCalendarPage() {
             <GoogleStyleWeekView
               currentDate={currentDate}
               assignments={assignments}
-              events={events}
+              events={allEvents}
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
             />
@@ -168,7 +177,7 @@ export function FullCalendarPage() {
             <DayView
               currentDate={currentDate}
               assignments={assignments}
-              events={events}
+              events={allEvents}
             />
           )}
         </div>
@@ -206,7 +215,7 @@ export function FullCalendarPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-priority-low" />
-            <span>Calendar Event</span>
+            <span>Calendar Event / Office Hours</span>
           </div>
         </div>
       </div>

@@ -62,6 +62,10 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
       name: data.name,
       color: data.color || DEFAULTS.COURSE_COLOR,
       instructor: data.instructor,
+      professorEmail: data.professorEmail,
+      officeHours: data.officeHours,
+      gradeWeights: data.gradeWeights,
+      description: data.description,
       active: data.active !== undefined ? data.active : true,
     }
 
