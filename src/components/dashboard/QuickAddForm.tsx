@@ -22,7 +22,8 @@ export function QuickAddForm() {
   const {
     isQuickAddOpen, closeQuickAdd,
     isEditModalOpen, closeEditModal, editingAssignmentId,
-    showToast
+    showToast,
+    apiKey, openSettings
   } = useUIStore()
   const { addAssignment, updateAssignment, assignments } = useAssignmentStore()
   const { getCourseByCode } = useCourseStore()
@@ -239,20 +240,49 @@ export function QuickAddForm() {
       {/* AI Parsing Input */}
       {isParsingEnabled && !parsedResult && !showManualForm && (
         <div className="mb-6 pb-6 border-b border-border">
-          <p className="text-sm text-text-muted mb-3">
-            ✨ Try AI parsing - describe your assignment naturally:
-          </p>
-          <NLPInput
-            onParsed={handleParsed}
-            placeholder="e.g., ECE 306 lab due Friday 5pm, high priority"
-          />
-          <button
-            type="button"
-            onClick={() => setShowManualForm(true)}
-            className="mt-3 text-xs text-text-muted hover:text-text-secondary"
-          >
-            Or enter manually →
-          </button>
+          {apiKey ? (
+            <>
+              <p className="text-sm text-text-muted mb-3">
+                ✨ Try AI parsing - describe your assignment naturally:
+              </p>
+              <NLPInput
+                onParsed={handleParsed}
+                placeholder="e.g., ECE 306 lab due Friday 5pm, high priority"
+              />
+              <button
+                type="button"
+                onClick={() => setShowManualForm(true)}
+                className="mt-3 text-xs text-text-muted hover:text-text-secondary"
+              >
+                Or enter manually →
+              </button>
+            </>
+          ) : (
+            <div className="bg-secondary/50 p-4 rounded-lg border border-border text-center">
+              <p className="text-sm text-text-primary font-medium mb-1">
+                ✨ AI Parsing Available
+              </p>
+              <p className="text-xs text-text-muted mb-3">
+                Enter your Google Gemini API Key to enable smart assignment parsing, study tips, and syllabus import.
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={openSettings}
+                >
+                  Enable AI Features
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowManualForm(true)}
+                >
+                  Enter Manually
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

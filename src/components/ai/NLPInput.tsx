@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useAIStore } from '@/store/aiStore'
+import { useUIStore } from '@/store/uiStore'
 import { NLPParseResult } from '@/types/ai'
 
 interface NLPInputProps {
@@ -16,21 +17,28 @@ export function NLPInput({ onParsed, placeholder = 'e.g., ECE 306 lab due Friday
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const { isParsingEnabled, setParseResult, rateLimit } = useAIStore()
 
   const handleParse = useCallback(async () => {
     if (!input.trim()) return
-    
+
     setIsLoading(true)
     setError(null)
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+
+      const { apiKey } = useUIStore.getState()
+      if (apiKey) {
+        headers['x-gemini-api-key'] = apiKey
+      }
+
       const response = await fetch('/api/gemini/parse', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ input: input.trim() }),
       })
 

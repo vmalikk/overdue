@@ -10,15 +10,15 @@ export async function POST(request: NextRequest) {
     // Check rate limit
     const clientId = request.headers.get('x-forwarded-for') || 'default'
     const rateLimitResult = checkRateLimit(clientId)
-    
+
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { 
+        {
           error: 'Rate limit exceeded',
           resetIn: Math.ceil(rateLimitResult.resetIn / 1000),
           message: `Please wait ${Math.ceil(rateLimitResult.resetIn / 1000)} seconds before making another request`
         },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Remaining': '0',
@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { 
-      title, 
-      description, 
-      courseCode, 
-      deadline, 
+    const {
+      title,
+      description,
+      courseCode,
+      deadline,
       estimatedHours,
       type = 'tips' // 'tips' or 'deadline'
     } = body as {
@@ -61,9 +61,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if Gemini API key is configured
-    if (!process.env.GEMINI_API_KEY) {
+    const apiKey = request.headers.get('x-gemini-api-key') || undefined
+
+    if (!apiKey) {
       return NextResponse.json(
-        { 
+        {
           error: 'Gemini API is not configured',
           fallback: true,
           tips: {
@@ -90,7 +92,8 @@ export async function POST(request: NextRequest) {
         title,
         courseCode,
         deadlineDate,
-        existingAssignments
+        existingAssignments,
+        apiKey
       )
 
       return NextResponse.json({
@@ -113,7 +116,8 @@ export async function POST(request: NextRequest) {
       description,
       courseCode,
       deadlineDate,
-      estimatedHours
+      estimatedHours,
+      apiKey
     )
 
     return NextResponse.json({

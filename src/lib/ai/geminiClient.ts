@@ -48,22 +48,21 @@ export function checkRateLimit(clientId: string = 'default'): { allowed: boolean
 // Create the AI client instance
 let aiClient: GoogleGenAI | null = null
 
-function getAIClient(): GoogleGenAI {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set')
-    }
-    aiClient = new GoogleGenAI({ apiKey: apiKey })
+function getAIClient(apiKey?: string): GoogleGenAI {
+  // Strict BYOK: User MUST provide an API key. 
+  // We do NOT use the server environment variable to prevent unauthorized usage of the owner's quota.
+  if (!apiKey) {
+    throw new Error('No API Key provided. Please set your Gemini API Key in Settings.')
   }
-  return aiClient
+
+  return new GoogleGenAI({ apiKey });
 }
 
 /**
  * Parse natural language input into structured assignment data
  */
-export async function parseNaturalLanguage(input: string): Promise<NLPParseResult> {
-  const ai = getAIClient()
+export async function parseNaturalLanguage(input: string, apiKey?: string): Promise<NLPParseResult> {
+  const ai = getAIClient(apiKey)
 
   const prompt = `You are an assignment parser. Parse the following natural language input into structured assignment data.
 
@@ -102,14 +101,14 @@ Example for "ECE 306 lab due Friday 5pm":
       contents: prompt,
     })
     const responseText = response.text || ''
-    
+
     // Extract JSON from response (handle markdown code blocks)
     let jsonStr = responseText
     const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }
-    
+
     // Clean up the JSON string
     jsonStr = jsonStr.trim()
     if (jsonStr.startsWith('```')) {
@@ -117,7 +116,7 @@ Example for "ECE 306 lab due Friday 5pm":
     }
 
     const parsed = JSON.parse(jsonStr)
-    
+
     return {
       success: true,
       parsed: {
@@ -152,12 +151,13 @@ export async function generateStudyTips(
   description: string | undefined,
   courseCode: string | undefined,
   deadline: Date,
-  estimatedHours: number | undefined
+  estimatedHours: number | undefined,
+  apiKey?: string
 ): Promise<StudyTipsResponse> {
-  const ai = getAIClient()
+  const ai = getAIClient(apiKey)
 
   const daysUntilDue = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  
+
   const prompt = `You are a helpful study advisor. Generate concise, actionable study tips for the following assignment:
 
 Title: ${title}
@@ -180,20 +180,20 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
       contents: prompt,
     })
     const responseText = response.text || ''
-    
+
     let jsonStr = responseText
     const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }
-    
+
     jsonStr = jsonStr.trim()
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim()
     }
 
     const parsed = JSON.parse(jsonStr)
-    
+
     return {
       tips: parsed.tips || [],
       suggestedSchedule: (parsed.suggestedSchedule || []).map((s: { date: string; task: string }) => ({
@@ -227,9 +227,10 @@ export async function generateDeadlineSuggestion(
   title: string,
   courseCode: string | undefined,
   currentDeadline: Date,
-  existingAssignments: { title: string; deadline: Date; courseCode?: string }[]
+  existingAssignments: { title: string; deadline: Date; courseCode?: string }[],
+  apiKey?: string
 ): Promise<DeadlineSuggestion> {
-  const ai = getAIClient()
+  const ai = getAIClient(apiKey)
 
   const upcomingAssignments = existingAssignments
     .filter((a) => new Date(a.deadline) > new Date())
@@ -263,20 +264,20 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
       contents: prompt,
     })
     const responseText = response.text || ''
-    
+
     let jsonStr = responseText
     const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }
-    
+
     jsonStr = jsonStr.trim()
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim()
     }
 
     const parsed = JSON.parse(jsonStr)
-    
+
     return {
       suggestedStartDate: new Date(parsed.suggestedStartDate),
       suggestedInternalDeadline: new Date(parsed.suggestedInternalDeadline),
@@ -286,12 +287,12 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
     }
   } catch (error) {
     console.error('Error generating deadline suggestion:', error)
-    
+
     // Fallback suggestion
     const daysUntilDue = Math.ceil((currentDeadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     const startDaysAhead = Math.max(1, Math.floor(daysUntilDue * 0.7))
     const internalDeadlineDaysAhead = Math.max(1, Math.floor(daysUntilDue * 0.9))
-    
+
     return {
       suggestedStartDate: new Date(Date.now() + (daysUntilDue - startDaysAhead) * 24 * 60 * 60 * 1000),
       suggestedInternalDeadline: new Date(currentDeadline.getTime() - 24 * 60 * 60 * 1000), // 1 day before
@@ -305,8 +306,8 @@ IMPORTANT: Return ONLY valid JSON, no markdown or explanation.`
 /**
  * Parse syllabus PDF/text to extract course details
  */
-export async function parseSyllabus(fileBase64: string, mimeType: string = 'application/pdf'): Promise<ParsedSyllabus> {
-  const ai = getAIClient()
+export async function parseSyllabus(fileBase64: string, mimeType: string = 'application/pdf', apiKey?: string): Promise<ParsedSyllabus> {
+  const ai = getAIClient(apiKey)
 
   const prompt = `You are a syllabus parser. Extract the following information from the syllabus document provided.
 
@@ -347,29 +348,29 @@ IMPORTANT: Return ONLY valid JSON, no markdown.`
         }
       ]
     })
-    
+
     // Check if response is successful
     if (!response || !response.text) {
-         console.error('Gemini response missing text', response)
-         throw new Error('Empty response from AI')
+      console.error('Gemini response missing text', response)
+      throw new Error('Empty response from AI')
     }
 
     const responseText = response.text || ''
     console.log('Gemini raw response:', responseText.substring(0, 100) + '...')
-    
+
     let jsonStr = responseText
     const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim()
     }
-    
+
     jsonStr = jsonStr.trim()
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim()
     }
 
     const parsed = JSON.parse(jsonStr)
-    
+
     return {
       courseCode: parsed.courseCode,
       courseName: parsed.courseName,
@@ -382,10 +383,10 @@ IMPORTANT: Return ONLY valid JSON, no markdown.`
     }
   } catch (error) {
     if (error instanceof Error) {
-        console.error('Error parsing syllabus - Message:', error.message)
-        console.error('Error parsing syllabus - Stack:', error.stack)
+      console.error('Error parsing syllabus - Message:', error.message)
+      console.error('Error parsing syllabus - Stack:', error.stack)
     } else {
-        console.error('Error parsing syllabus - Unknown:', error)
+      console.error('Error parsing syllabus - Unknown:', error)
     }
     throw new Error('Failed to parse syllabus')
   }

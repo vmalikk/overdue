@@ -10,15 +10,15 @@ export async function POST(request: NextRequest) {
     // Check rate limit
     const clientId = request.headers.get('x-forwarded-for') || 'default'
     const rateLimitResult = checkRateLimit(clientId)
-    
+
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { 
+        {
           error: 'Rate limit exceeded',
           resetIn: Math.ceil(rateLimitResult.resetIn / 1000),
           message: `Please wait ${Math.ceil(rateLimitResult.resetIn / 1000)} seconds before making another request`
         },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Remaining': '0',
@@ -45,23 +45,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if Gemini API key is configured
-    if (!process.env.GEMINI_API_KEY) {
+    // Check if Gemini API key is configured (Env var OR Header)
+    const apiKey = request.headers.get('x-gemini-api-key') || undefined
+
+    // Strict check: User MUST provide key if we are in BYOK mode (implied by this feature request)
+    // However, for backward compatibility or local dev, we might fallback to env var logic inside logic
+    // But here we want to return 503 if NEITHER is present.
+    if (!apiKey) {
       return NextResponse.json(
-        { 
-          error: 'Gemini API is not configured',
+        {
+          error: 'Gemini API not configured',
           fallback: true,
           parsed: {
             title: input,
             confidence: 0,
-            warnings: ['AI parsing is not available. Using input as title.']
+            warnings: ['AI parsing is not available. Please add your API Key in Settings.']
           }
         },
         { status: 503 }
       )
     }
 
-    const result = await parseNaturalLanguage(input)
+    const result = await parseNaturalLanguage(input, apiKey)
 
     return NextResponse.json({
       ...result,
@@ -77,13 +82,13 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in parse endpoint:', error)
-    
+
     const errorMessage = String(error)
-    
+
     // Handle quota exceeded errors with a friendly message
     if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('Too Many Requests')) {
       return NextResponse.json(
-        { 
+        {
           error: 'AI quota exceeded',
           message: 'The free AI quota has been reached. Please try again later or enable billing in Google AI Studio.',
           fallback: true,
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       )
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to parse input', details: errorMessage },
       { status: 500 }

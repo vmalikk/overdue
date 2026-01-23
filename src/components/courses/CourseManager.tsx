@@ -25,7 +25,7 @@ export function CourseManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null)
   const [pendingAssignments, setPendingAssignments] = useState<ParsedSyllabus['assignments'] | null>(null)
-  
+
   const [formData, setFormData] = useState<CourseFormData>({
     code: '',
     name: '',
@@ -83,28 +83,28 @@ export function CourseManager() {
         let count = 0
         for (const pa of pendingAssignments) {
           try {
-             let category = AssignmentCategory.ASSIGNMENT
-             const typeLower = pa.type?.toLowerCase() || ''
-             if (typeLower.includes('exam')) category = AssignmentCategory.EXAM
-             else if (typeLower.includes('quiz')) category = AssignmentCategory.QUIZ
-             else if (typeLower.includes('project')) category = AssignmentCategory.PROJECT
-             
-             await addAssignment({
-               title: pa.title,
-               courseId: targetCourseId,
-               deadline: new Date(pa.date),
-               priority: Priority.MEDIUM,
-               status: AssignmentStatus.NOT_STARTED,
-               category: category,
-               aiParsed: true
-             })
-             count++
+            let category = AssignmentCategory.ASSIGNMENT
+            const typeLower = pa.type?.toLowerCase() || ''
+            if (typeLower.includes('exam')) category = AssignmentCategory.EXAM
+            else if (typeLower.includes('quiz')) category = AssignmentCategory.QUIZ
+            else if (typeLower.includes('project')) category = AssignmentCategory.PROJECT
+
+            await addAssignment({
+              title: pa.title,
+              courseId: targetCourseId,
+              deadline: new Date(pa.date),
+              priority: Priority.MEDIUM,
+              status: AssignmentStatus.NOT_STARTED,
+              category: category,
+              aiParsed: true
+            })
+            count++
           } catch (err) {
             console.error('Failed to add parsed assignment', err)
           }
         }
         if (count > 0) {
-           showToast(`Added ${count} assignments from syllabus`, 'success')
+          showToast(`Added ${count} assignments from syllabus`, 'success')
         }
       }
 
@@ -155,15 +155,22 @@ export function CourseManager() {
     data.append('file', file)
 
     try {
+      const headers: HeadersInit = {}
+      const apiKey = useUIStore.getState().apiKey
+      if (apiKey) {
+        headers['x-gemini-api-key'] = apiKey
+      }
+
       const res = await fetch('/api/gemini/syllabus', {
         method: 'POST',
+        headers,
         body: data,
       })
 
       if (!res.ok) throw new Error('Failed to parse syllabus')
 
       const result: ParsedSyllabus = await res.json()
-      
+
       setFormData(prev => ({
         ...prev,
         code: result.courseCode || prev.code,
@@ -198,39 +205,39 @@ export function CourseManager() {
   }
 
   const updateOfficeHour = (index: number, field: keyof OfficeHour, value: string) => {
-      setFormData(prev => {
-          const newHours = [...(prev.officeHours || [])]
-          newHours[index] = { ...newHours[index], [field]: value }
-          return { ...prev, officeHours: newHours }
-      })
+    setFormData(prev => {
+      const newHours = [...(prev.officeHours || [])]
+      newHours[index] = { ...newHours[index], [field]: value }
+      return { ...prev, officeHours: newHours }
+    })
   }
 
   const removeOfficeHour = (index: number) => {
-      setFormData(prev => ({
-          ...prev,
-          officeHours: (prev.officeHours || []).filter((_, i) => i !== index)
-      }))
+    setFormData(prev => ({
+      ...prev,
+      officeHours: (prev.officeHours || []).filter((_, i) => i !== index)
+    }))
   }
 
   const addGradeWeight = () => {
-      setFormData(prev => ({
-          ...prev,
-          gradeWeights: [...(prev.gradeWeights || []), { category: 'Exam', weight: 0 }]
-      }))
+    setFormData(prev => ({
+      ...prev,
+      gradeWeights: [...(prev.gradeWeights || []), { category: 'Exam', weight: 0 }]
+    }))
   }
-  
+
   const updateGradeWeight = (index: number, field: keyof GradeWeight, value: string | number) => {
     setFormData(prev => {
-        const newWeights = [...(prev.gradeWeights || [])]
-        newWeights[index] = { ...newWeights[index], [field]: value }
-        return { ...prev, gradeWeights: newWeights }
+      const newWeights = [...(prev.gradeWeights || [])]
+      newWeights[index] = { ...newWeights[index], [field]: value }
+      return { ...prev, gradeWeights: newWeights }
     })
   }
 
   const removeGradeWeight = (index: number) => {
     setFormData(prev => ({
-        ...prev,
-        gradeWeights: (prev.gradeWeights || []).filter((_, i) => i !== index)
+      ...prev,
+      gradeWeights: (prev.gradeWeights || []).filter((_, i) => i !== index)
     }))
   }
 
@@ -238,8 +245,8 @@ export function CourseManager() {
 
   return (
     <div className="space-y-6">
-      <CourseDetailModal 
-        course={viewedCourse} 
+      <CourseDetailModal
+        course={viewedCourse}
         isOpen={!!viewedCourse}
         onClose={() => setViewingCourseId(null)}
         onEdit={() => viewingCourseId && handleEdit(viewingCourseId)}
@@ -264,28 +271,28 @@ export function CourseManager() {
       {isAdding && (
         <div className="bg-secondary border border-border rounded-lg p-6">
           <div className="flex justify-between mb-4">
-             <h3 className="text-lg font-semibold text-text-primary">
-               {editingId ? 'Edit Course' : 'Add New Course'}
-             </h3>
-             <div className="flex items-center gap-2">
-                <input
-                    type="file"
-                    accept=".pdf,text/*"
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handleSyllabusUpload}
-                />
-                <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isParsing}
-                >
-                    {isParsing ? 'Parsing...' : 'Auto-fill from Syllabus'}
-                </Button>
-             </div>
+            <h3 className="text-lg font-semibold text-text-primary">
+              {editingId ? 'Edit Course' : 'Add New Course'}
+            </h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".pdf,text/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleSyllabusUpload}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isParsing}
+              >
+                {isParsing ? 'Parsing...' : 'Auto-fill from Syllabus'}
+              </Button>
+            </div>
           </div>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
@@ -308,97 +315,97 @@ export function CourseManager() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
+              <Input
                 label="Instructor Name"
                 value={formData.instructor || ''}
                 onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
                 placeholder="e.g., Mr. Carlson"
-                />
-                <Input
+              />
+              <Input
                 label="Professor Email"
                 value={formData.professorEmail || ''}
                 onChange={(e) => setFormData({ ...formData, professorEmail: e.target.value })}
                 placeholder="email@university.edu"
                 type="email"
-                />
+              />
             </div>
 
             {/* Office Hours Editor */}
             <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-text-primary">Office Hours</label>
-                    <Button type="button" variant="ghost" size="sm" onClick={addOfficeHour}>+ Add</Button>
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-text-primary">Office Hours</label>
+                <Button type="button" variant="ghost" size="sm" onClick={addOfficeHour}>+ Add</Button>
+              </div>
+              {formData.officeHours && formData.officeHours.map((oh, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <Input
+                    value={oh.day}
+                    onChange={e => updateOfficeHour(idx, 'day', e.target.value)}
+                    placeholder="Day"
+                    className="w-24"
+                  />
+                  <Input
+                    value={oh.startTime}
+                    onChange={e => updateOfficeHour(idx, 'startTime', e.target.value)}
+                    placeholder="Start"
+                    type="time"
+                    className="w-24"
+                  />
+                  <Input
+                    value={oh.endTime}
+                    onChange={e => updateOfficeHour(idx, 'endTime', e.target.value)}
+                    placeholder="End"
+                    type="time"
+                    className="w-24"
+                  />
+                  <Input
+                    value={oh.location}
+                    onChange={e => updateOfficeHour(idx, 'location', e.target.value)}
+                    placeholder="Location"
+                    className="flex-1"
+                  />
+                  <button type="button" onClick={() => removeOfficeHour(idx)} className="text-status-red">✕</button>
                 </div>
-                {formData.officeHours && formData.officeHours.map((oh, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                        <Input 
-                            value={oh.day} 
-                            onChange={e => updateOfficeHour(idx, 'day', e.target.value)} 
-                            placeholder="Day"
-                            className="w-24"
-                        />
-                        <Input 
-                            value={oh.startTime} 
-                            onChange={e => updateOfficeHour(idx, 'startTime', e.target.value)} 
-                            placeholder="Start"
-                            type="time"
-                            className="w-24"
-                        />
-                         <Input 
-                            value={oh.endTime} 
-                            onChange={e => updateOfficeHour(idx, 'endTime', e.target.value)} 
-                            placeholder="End"
-                            type="time"
-                            className="w-24"
-                        />
-                         <Input 
-                            value={oh.location} 
-                            onChange={e => updateOfficeHour(idx, 'location', e.target.value)} 
-                            placeholder="Location"
-                            className="flex-1"
-                        />
-                        <button type="button" onClick={() => removeOfficeHour(idx)} className="text-status-red">✕</button>
-                    </div>
-                ))}
+              ))}
             </div>
 
             {/* Grade Weights Editor */}
             <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-text-primary">Grade Breakdown</label>
-                     <Button type="button" variant="ghost" size="sm" onClick={addGradeWeight}>+ Add</Button>
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-text-primary">Grade Breakdown</label>
+                <Button type="button" variant="ghost" size="sm" onClick={addGradeWeight}>+ Add</Button>
+              </div>
+              {formData.gradeWeights && formData.gradeWeights.map((gw, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <Input
+                    value={gw.category}
+                    onChange={e => updateGradeWeight(idx, 'category', e.target.value)}
+                    placeholder="Category (e.g. Quizzes)"
+                    className="flex-1"
+                  />
+                  <div className="flex items-center gap-1 w-24">
+                    <Input
+                      value={gw.weight}
+                      onChange={e => updateGradeWeight(idx, 'weight', parseFloat(e.target.value) || 0)}
+                      type="number"
+                      placeholder="%"
+                    />
+                    <span className="text-sm">%</span>
+                  </div>
+                  <button type="button" onClick={() => removeGradeWeight(idx)} className="text-status-red">✕</button>
                 </div>
-                 {formData.gradeWeights && formData.gradeWeights.map((gw, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                        <Input 
-                            value={gw.category} 
-                            onChange={e => updateGradeWeight(idx, 'category', e.target.value)} 
-                            placeholder="Category (e.g. Quizzes)"
-                            className="flex-1"
-                        />
-                         <div className="flex items-center gap-1 w-24">
-                            <Input 
-                                value={gw.weight} 
-                                onChange={e => updateGradeWeight(idx, 'weight', parseFloat(e.target.value) || 0)} 
-                                type="number"
-                                placeholder="%"
-                            />
-                            <span className="text-sm">%</span>
-                         </div>
-                        <button type="button" onClick={() => removeGradeWeight(idx)} className="text-status-red">✕</button>
-                    </div>
-                ))}
+              ))}
             </div>
 
-             {/* Description */}
-             <div className="space-y-1">
-                <label className="text-sm font-medium text-text-primary">Description</label>
-                <textarea 
-                    className="w-full bg-surface border border-border rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary h-24"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                ></textarea>
-             </div>
+            {/* Description */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-text-primary">Description</label>
+              <textarea
+                className="w-full bg-surface border border-border rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary h-24"
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              ></textarea>
+            </div>
 
             {/* Color Picker */}
             <div>

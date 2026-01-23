@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { StudyTipsResponse } from '@/types/ai'
 import { useAIStore } from '@/store/aiStore'
+import { useUIStore } from '@/store/uiStore'
 import { format } from 'date-fns'
 
 interface StudyTipsProps {
@@ -39,6 +40,7 @@ export function StudyTips({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(useUIStore.getState().apiKey ? { 'x-gemini-api-key': useUIStore.getState().apiKey! } : {})
         },
         body: JSON.stringify({
           title,
