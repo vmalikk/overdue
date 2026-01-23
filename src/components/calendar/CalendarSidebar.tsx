@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { MiniCalendar } from '@/components/dashboard/MiniCalendar' // We might need to make this controlled later
 import clsx from 'clsx'
 import { useSession, signIn, signOut } from 'next-auth/react'
+import { useUIStore } from '@/store/uiStore'
 
 interface CalendarSidebarProps {
   calendars: { id: string; name: string; backgroundColor?: string }[]
@@ -27,11 +28,20 @@ export function CalendarSidebar({
   currentDate,
   onDateChange
 }: CalendarSidebarProps) {
+  const { showToast } = useUIStore()
+
+  const handleConnectClick = () => {
+    if (isConnected) {
+      showToast('Support for multiple Google accounts is coming soon.', 'info')
+    } else {
+      onConnect()
+    }
+  }
   
   return (
     <div className="w-64 flex-shrink-0 flex flex-col border-r border-border bg-background pt-4 h-full overflow-y-auto">
       {/* Mini Calendar Container */}
-      <div className="px-4 mb-6">
+      <div className="pl-2 pr-4 mb-6">
         <MiniCalendar value={currentDate} onChange={onDateChange} />
       </div>
 
@@ -59,7 +69,7 @@ export function CalendarSidebar({
            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
              Calendars
            </h3>
-           <button onClick={onConnect} className="text-text-muted hover:text-text-primary" title="Add Calendar Account">
+           <button onClick={handleConnectClick} className="text-text-muted hover:text-text-primary" title="Add Calendar Account">
              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                <path d="M12 5v14M5 12h14" />
              </svg>
