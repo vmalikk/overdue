@@ -73,3 +73,4 @@ export const DEFAULTS = {
   ASSIGNMENT_TIME: '23:59', // 11:59 PM
   COURSE_COLOR: '#3b82f6', // Blue
 }
+//hi
