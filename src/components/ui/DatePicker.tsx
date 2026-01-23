@@ -50,6 +50,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
         // By checking `valueString !== dateInputValue` above, we avoid resetting if it matches.
 
         const newDate = new Date(year, month - 1, day)
+        newDate.setFullYear(year) // Explicitly set the year to handle 2-digit years correctly (avoid 19xx mapping)
 
         if (!isNaN(newDate.getTime())) {
           if (value && showTime) {
