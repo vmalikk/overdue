@@ -1,4 +1,4 @@
-import { Client, Databases, Query, ID } from "appwrite";
+import { Client, Databases, Query, ID, Permission, Role } from "appwrite";
 import { Assignment, AssignmentStatus, Priority, AssignmentCategory } from '@/types/assignment';
 import { Course } from '@/types/course';
 
@@ -55,7 +55,12 @@ export async function addAssignment(assignment: Omit<Assignment, 'id' | 'created
       completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
       googleCalendarEventId: assignment.googleCalendarEventId || null,
       calendarSynced: assignment.calendarSynced || false
-    }
+    },
+    [
+      Permission.read(Role.user(userId)),
+      Permission.update(Role.user(userId)),
+      Permission.delete(Role.user(userId)),
+    ]
   );
   return mapDocumentToAssignment(doc);
 }
@@ -150,7 +155,12 @@ export async function addCourse(course: Omit<Course, 'id' | 'createdAt'>, userId
       description: course.description || null,
       active: course.active ?? true,
       userId: userId,
-    }
+    },
+    [
+      Permission.read(Role.user(userId)),
+      Permission.update(Role.user(userId)),
+      Permission.delete(Role.user(userId)),
+    ]
   );
   return mapDocumentToCourse(doc);
 }
