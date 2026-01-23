@@ -14,6 +14,7 @@ import { SyncStatus } from '@/types/calendar'
 interface ImportableEvent {
   title: string
   deadline: Date
+  end?: string       // Add end time support
   googleCalendarEventId: string
 }
 
@@ -115,48 +116,38 @@ export function CalendarSyncSection() {
 
     setIsImporting(true)
     try {
-      // 1. Get default course (first active one)
-      // Since we are inside the component, we can use the store hook.
-      // Ideally UI would ask "Which course to import to?", but for auto-import we pick one.
+      // Always persist imported events as assignments in Appwrite DB
       const defaultCourse = useCourseStore.getState().courses.find(c => c.active)
-      // If no course exists, we can't create assignment easily without breaking types.
-      // But let's assume user has at least one course or we create a 'General' placeholder?
-      // For now, if no course, we skip or use a strict check.
-
-      const courseIdToUse = defaultCourse?.id || 'general-import' // 'general-import' might fail if relation is strict
-
-      // We actually need the API to give us the events, which it effectively did via importableEvents state?
-      // The API call below re-fetches or confirms?
-      // Actually, the previous 'Preview' step filled `importableEvents`.
-      // The `handleImportEvents` button previously called `api/calendar/sync` with `import` again.
-      // Let's use the `importableEvents` state we already have! 
-      // AND we can also call the API to "mark" them if needed (though API is stateless).
+      const courseIdToUse = defaultCourse?.id || 'general-import'
 
       let importedCount = 0
-
       for (const event of importableEvents) {
         try {
+          // This will persist to Appwrite DB, making it available on all devices
           await useAssignmentStore.getState().addAssignment({
             title: event.title,
             description: 'Imported from Google Calendar',
             courseId: courseIdToUse,
             deadline: new Date(event.deadline),
-            priority: 'medium', // Default
-            status: 'not_started', // Default
-            category: 'assignment', // Default
-            googleCalendarEventId: event.googleCalendarEventId
-          } as any) // Type cast if needed for extra fields like googleId
+            priority: 'medium',
+            status: 'not_started',
+            category: 'event', // Import as Event
+            googleCalendarEventId: event.googleCalendarEventId,
+            // Store end time in notes as JSON since we don't have an 'end' field on Assignment
+            notes: JSON.stringify({
+              end: event.end || new Date(new Date(event.deadline).getTime() + 60 * 60 * 1000).toISOString(), // Default 1h
+              originalEvent: true
+            })
+          } as any)
           importedCount++
         } catch (e) {
           console.error('Failed to save imported event', e)
         }
       }
-
       showToast(`Imported ${importedCount} events`, 'success')
       setImportableEvents([])
-      loadAssignments()
+      await loadAssignments() // Ensure state is up to date
       setLastSync(new Date())
-
     } catch (error) {
       showToast('Failed to import events', 'error')
       console.error(error)

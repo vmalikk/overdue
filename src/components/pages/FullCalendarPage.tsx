@@ -48,50 +48,50 @@ export function FullCalendarPage() {
   useEffect(() => {
     async function getCalendars() {
       if (!session?.accessToken) {
-         setConnected(false)
-         return
+        setConnected(false)
+        return
       }
       setConnected(true)
       try {
         const res = await fetch('/api/calendar/calendars')
         const data = await res.json()
         if (data.success) {
-           const mapped = data.calendars.map((c: any) => ({
-             id: c.id,
-             name: c.name || c.summary || 'Untitled',
-             backgroundColor: c.backgroundColor || c.color || '#4285F4'
-           }))
-           setCalendars(mapped)
-           // Restore selectedCalendarIds from localStorage if available and valid
-           const stored = typeof window !== 'undefined' ? localStorage.getItem('selectedCalendarIds') : null
-           let restored: string[] = []
-           if (stored) {
-             try {
-               const parsed = JSON.parse(stored)
-               if (Array.isArray(parsed)) {
-                 // Only keep ids that exist in mapped
-                 restored = parsed.filter((id: string) => mapped.some((c: any) => c.id === id))
-               }
-             } catch {}
-           }
-           if (restored.length > 0) {
-             setSelectedCalendarIds(restored)
-           } else if (mapped.length > 0) {
-             const primary = mapped.find((c: any) => c.primary) || mapped[0]
-             setSelectedCalendarIds([primary.id])
-           }
+          const mapped = data.calendars.map((c: any) => ({
+            id: c.id,
+            name: c.name || c.summary || 'Untitled',
+            backgroundColor: c.backgroundColor || c.color || '#4285F4'
+          }))
+          setCalendars(mapped)
+          // Restore selectedCalendarIds from localStorage if available and valid
+          const stored = typeof window !== 'undefined' ? localStorage.getItem('selectedCalendarIds') : null
+          let restored: string[] = []
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored)
+              if (Array.isArray(parsed)) {
+                // Only keep ids that exist in mapped
+                restored = parsed.filter((id: string) => mapped.some((c: any) => c.id === id))
+              }
+            } catch { }
+          }
+          if (restored.length > 0) {
+            setSelectedCalendarIds(restored)
+          } else if (mapped.length > 0) {
+            // Default to ALL calendars selected
+            setSelectedCalendarIds(mapped.map((c: any) => c.id))
+          }
         }
       } catch (err) {
         console.error('Failed to load calendars', err)
       }
     }
     if (config.connected) {
-       getCalendars()
+      getCalendars()
     }
   }, [config.connected, session?.accessToken, setConnected])
 
   const toggleCalendar = (id: string) => {
-    setSelectedCalendarIds(prev => 
+    setSelectedCalendarIds(prev =>
       prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
     )
   }
@@ -106,11 +106,11 @@ export function FullCalendarPage() {
     setIsLoading(true)
     try {
       const { start, end } = getVisibleDateRange(currentDate, view)
-      
+
       // Fetch for all selected calendars
       // Using Promise.all to fetch concurrently
-      const promises = selectedCalendarIds.map(calId => 
-         fetch(
+      const promises = selectedCalendarIds.map(calId =>
+        fetch(
           `/api/calendar/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&calendarId=${encodeURIComponent(calId)}`
         ).then(res => res.ok ? res.json() : { events: [] }).catch(e => ({ events: [] }))
       )
@@ -118,22 +118,22 @@ export function FullCalendarPage() {
       const results = await Promise.all(promises)
       // Merge all events
       let allRemoteEvents: CalendarEvent[] = []
-      
+
       results.forEach(data => {
-         if (data.events) {
-           const mapped = data.events.map((e: any) => ({
-              id: e.googleCalendarEventId || e.id,
-              summary: e.title || e.summary || 'Untitled',
-              description: e.description,
-              start: new Date(e.start),
-              end: new Date(e.end),
-              isAllDay: !e.start.includes('T'), // Basic check
-              color: e.color // if available
-           }))
-           allRemoteEvents = [...allRemoteEvents, ...mapped]
-         }
+        if (data.events) {
+          const mapped = data.events.map((e: any) => ({
+            id: e.googleCalendarEventId || e.id,
+            summary: e.title || e.summary || 'Untitled',
+            description: e.description,
+            start: new Date(e.start),
+            end: new Date(e.end),
+            isAllDay: !e.start.includes('T'), // Basic check
+            color: e.color // if available
+          }))
+          allRemoteEvents = [...allRemoteEvents, ...mapped]
+        }
       })
-      
+
       setEvents(allRemoteEvents)
 
     } catch (error) {
@@ -204,7 +204,7 @@ export function FullCalendarPage() {
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-background border rounded-lg border-border overflow-hidden">
       {/* Sidebar List */}
-      <CalendarSidebar 
+      <CalendarSidebar
         calendars={calendars}
         selectedCalendarIds={selectedCalendarIds}
         onToggleCalendar={toggleCalendar}
@@ -213,8 +213,8 @@ export function FullCalendarPage() {
         userEmail={session?.user?.email || undefined}
         currentDate={currentDate}
         onDateChange={(date) => {
-           setCurrentDate(date)
-           setSelectedDate(date)
+          setCurrentDate(date)
+          setSelectedDate(date)
         }}
       />
 
@@ -226,9 +226,9 @@ export function FullCalendarPage() {
             <div>
               <p className="text-sm text-text-muted">
                 {isLoading && (
-                   <span className="flex items-center gap-2">
-                     <span className="animate-spin text-primary">⟳</span> Updating...
-                   </span>
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin text-primary">⟳</span> Updating...
+                  </span>
                 )}
               </p>
             </div>
@@ -273,32 +273,32 @@ export function FullCalendarPage() {
         </div>
       </div>
 
-       {/* Right Sidebar (Details/Sync) */}
-       {selectedDate && (
-          <div className="w-80 border-l border-border bg-background flex flex-col overflow-y-auto">
-             <DaySidebar
-              isOpen={true} // Always open if selectedDate is set in this layout
-              date={selectedDate}
-              assignments={selectedDateAssignments}
-              events={selectedDateEvents}
-              onClose={handleCloseSidebar}
-            />
-          </div>
-       )}
-       {/* Use this space for right sidebar from screenshot if no date selected? 
+      {/* Right Sidebar (Details/Sync) */}
+      {selectedDate && (
+        <div className="w-80 border-l border-border bg-background flex flex-col overflow-y-auto">
+          <DaySidebar
+            isOpen={true} // Always open if selectedDate is set in this layout
+            date={selectedDate}
+            assignments={selectedDateAssignments}
+            events={selectedDateEvents}
+            onClose={handleCloseSidebar}
+          />
+        </div>
+      )}
+      {/* Use this space for right sidebar from screenshot if no date selected? 
            Screenshot has "Invite to Notion Calendar" etc. 
            For now, let's keep it clean or show a placeholder shortcuts panel. */}
-       {!selectedDate && (
-         <div className="hidden lg:block w-64 border-l border-border bg-background p-4">
-            <h4 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">Useful shortcuts</h4>
-            <div className="space-y-2 text-sm text-text-secondary">
-               <div className="flex justify-between"><span>Command menu</span><span className="text-text-muted">⌘ K</span></div>
-               <div className="flex justify-between"><span>Today</span><span className="text-text-muted">T</span></div>
-               <div className="flex justify-between"><span>Next period</span><span className="text-text-muted">J</span></div>
-               <div className="flex justify-between"><span>Prev period</span><span className="text-text-muted">K</span></div>
-            </div>
-         </div>
-       )}
+      {!selectedDate && (
+        <div className="hidden lg:block w-64 border-l border-border bg-background p-4">
+          <h4 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">Useful shortcuts</h4>
+          <div className="space-y-2 text-sm text-text-secondary">
+            <div className="flex justify-between"><span>Command menu</span><span className="text-text-muted">⌘ K</span></div>
+            <div className="flex justify-between"><span>Today</span><span className="text-text-muted">T</span></div>
+            <div className="flex justify-between"><span>Next period</span><span className="text-text-muted">J</span></div>
+            <div className="flex justify-between"><span>Prev period</span><span className="text-text-muted">K</span></div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

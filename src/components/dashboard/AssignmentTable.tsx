@@ -54,6 +54,9 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
       if (deadline < now || deadline > sevenDaysFromNow) return false
     }
 
+    // Filter out Calendar Events (they shouldn't show in the assignment list)
+    if (assignment.category === 'event') return false
+
     return true
   })
 

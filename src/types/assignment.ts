@@ -23,6 +23,7 @@ export enum AssignmentCategory {
   LAB = 'lab',
   DISCUSSION = 'discussion',
   PROJECT = 'project',
+  EVENT = 'event',
   OTHER = 'other'
 }
 
@@ -39,7 +40,7 @@ export interface Assignment {
   estimatedHours?: number
   tags?: string[]
   notes?: string
-  
+
   // Attachments
   attachmentFileId?: string
   attachmentFileName?: string
