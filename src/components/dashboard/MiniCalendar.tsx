@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { getCalendarDates, isSameDay } from '@/lib/utils/dateUtils'
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfDay, endOfDay } from 'date-fns'
 import { calculateStatus } from '@/lib/utils/statusCalculator'
 import clsx from 'clsx'
 
