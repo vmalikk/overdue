@@ -13,7 +13,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { useAIStore } from '@/store/aiStore'
-import { Priority, AssignmentCategory } from '@/types/assignment'
+import { Priority, AssignmentCategory, AssignmentStatus } from '@/types/assignment'
 import { NLPParseResult } from '@/types/ai'
 import { DEFAULTS, LIMITS } from '@/config/constants'
 import { MAX_FILE_SIZE } from '@/lib/appwrite/storage'
@@ -99,6 +99,7 @@ export function QuickAddForm() {
         courseId: formData.courseId,
         deadline: formData.deadline,
         priority: formData.priority,
+        status: AssignmentStatus.NOT_STARTED,
         category: formData.category,
         estimatedHours: formData.estimatedHours,
         notes: formData.notes.trim() || undefined,
@@ -137,6 +138,7 @@ export function QuickAddForm() {
         courseId: formData.courseId,
         deadline: formData.deadline,
         priority: formData.priority,
+        status: AssignmentStatus.NOT_STARTED,
         category: formData.category,
         estimatedHours: formData.estimatedHours,
         notes: formData.notes.trim() || undefined,
