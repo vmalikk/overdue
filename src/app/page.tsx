@@ -101,7 +101,22 @@ function DashboardContent() {
                   Add Assignment
                 </Button>
               </div>
-              <AssignmentTable filterStatus="all" filterTime="all" />
+              <AssignmentTable filterStatus="incomplete" filterTime="all" />
+
+              <div className="pt-8 relative">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t border-border"></div>
+                </div>
+                <div className="relative flex justify-start">
+                  <span className="pr-3 bg-background text-lg font-medium text-text-muted">
+                    Completed
+                  </span>
+                </div>
+              </div>
+
+              <div className="opacity-75">
+                <AssignmentTable filterStatus="completed" filterTime="all" />
+              </div>
             </div>
           )}
 

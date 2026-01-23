@@ -10,13 +10,13 @@ import { Input } from '@/components/ui/Input'
 import clsx from 'clsx'
 
 interface AssignmentTableProps {
-  filterStatus?: 'incomplete' | 'all'
+  filterStatus?: 'incomplete' | 'all' | 'completed'
   filterTime?: 'week' | 'all'
 }
 
 export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all' }: AssignmentTableProps) {
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
-  
+
   const {
     filteredAssignments,
     loadAssignments,
@@ -37,23 +37,24 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
 
   // Apply props filters on top of store filters
   const displayedAssignments = filteredAssignments.filter(assignment => {
-      // Status filter
-      if (filterStatus === 'incomplete' && assignment.status === 'completed') return false
-      
-      // Time filter
-      if (filterTime === 'week') {
-          const now = new Date()
-          const deadline = new Date(assignment.deadline)
-          // Check if deadline is largely in the future but within 7 days
-          // Or just standard "this week" logic (Sunday-Saturday)
-          // Let's use "Next 7 Days" as it's more useful for "Due This Week" context usually
-          const sevenDaysFromNow = new Date()
-          sevenDaysFromNow.setDate(now.getDate() + 7)
-          
-          if (deadline < now || deadline > sevenDaysFromNow) return false
-      }
-      
-      return true
+    // Status filter
+    if (filterStatus === 'incomplete' && assignment.status === 'completed') return false
+    if (filterStatus === 'completed' && assignment.status !== 'completed') return false
+
+    // Time filter
+    if (filterTime === 'week') {
+      const now = new Date()
+      const deadline = new Date(assignment.deadline)
+      // Check if deadline is largely in the future but within 7 days
+      // Or just standard "this week" logic (Sunday-Saturday)
+      // Let's use "Next 7 Days" as it's more useful for "Due This Week" context usually
+      const sevenDaysFromNow = new Date()
+      sevenDaysFromNow.setDate(now.getDate() + 7)
+
+      if (deadline < now || deadline > sevenDaysFromNow) return false
+    }
+
+    return true
   })
 
   const handleSort = (field: typeof sortBy) => {
@@ -219,10 +220,10 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
       )}
 
       {selectedAssignment && (
-        <AssignmentDetailModal 
-            assignment={selectedAssignment} 
-            isOpen={!!selectedAssignment} 
-            onClose={() => setSelectedAssignment(null)} 
+        <AssignmentDetailModal
+          assignment={selectedAssignment}
+          isOpen={!!selectedAssignment}
+          onClose={() => setSelectedAssignment(null)}
         />
       )}
     </div>
