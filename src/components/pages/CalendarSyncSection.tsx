@@ -24,11 +24,18 @@ export function CalendarSyncSection() {
   const { showToast } = useUIStore()
 
   const [calendars, setCalendars] = useState<{ id: string; name: string }[]>([])
-  const [selectedCalendar, setSelectedCalendar] = useState('primary')
+  const [selectedCalendar, setSelectedCalendar] = useState(config.calendarId || 'primary')
   const [importableEvents, setImportableEvents] = useState<ImportableEvent[]>([])
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+
+  // Sync local state when store updates (e.g. from hydration)
+  useEffect(() => {
+    if (config.calendarId) {
+      setSelectedCalendar(config.calendarId)
+    }
+  }, [config.calendarId])
 
   // Check if connected on mount
   useEffect(() => {
@@ -36,7 +43,11 @@ export function CalendarSyncSection() {
       setConnected(true)
       fetchCalendars()
     } else {
-      setConnected(false)
+      // Don't disconnect if we have a persisted session valid? 
+      // Actually, we rely on NextAuth session. If that expires, we disconnect.
+      if (status === 'unauthenticated') {
+        setConnected(false)
+      }
     }
   }, [status, session, setConnected])
 
