@@ -131,50 +131,6 @@ export function FullCalendarPage() {
     fetchCalendarEvents()
   }, [fetchCalendarEvents])
 
-
-    setIsLoading(true)
-    try {
-      const { start, end } = getVisibleDateRange(currentDate, view)
-      const response = await fetch(
-        `/api/calendar/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}`
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        // Transform to CalendarEvent format - API returns { title, start, end, googleCalendarEventId }
-        const calendarEvents: CalendarEvent[] = data.events.map((e: {
-          googleCalendarEventId: string
-          title: string
-          description?: string
-          start: string
-          end: string
-        }) => {
-          // Parse dates - the API returns original Google Calendar datetime strings
-          const startDate = new Date(e.start)
-          const endDate = new Date(e.end)
-          
-          return {
-            id: e.googleCalendarEventId,
-            summary: e.title || 'Untitled',
-            description: e.description,
-            start: startDate,
-            end: endDate,
-            isAllDay: !e.start.includes('T'), // All-day events don't have time component
-          }
-        })
-        setEvents(calendarEvents)
-      }
-    } catch (error) {
-      console.error('Error fetching calendar events:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [currentDate, view, session?.accessToken, config.connected, setEvents])
-
-  useEffect(() => {
-    fetchCalendarEvents()
-  }, [fetchCalendarEvents])
-
   // Combine remote events with course office hours
   const allEvents = useMemo(() => {
     const { start, end } = getVisibleDateRange(currentDate, view)

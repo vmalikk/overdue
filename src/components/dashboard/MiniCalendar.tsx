@@ -87,14 +87,6 @@ export function MiniCalendar({ value, onChange, disabled }: MiniCalendarProps) {
     return mostUrgent
   }
 
-  const handleDateClick = (date: Date) => {
-    const start = new Date(date)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(date)
-    end.setHours(23, 59, 59, 999)
-    setFilterDateRange({ start, end })
-  }
-
   return (
     <div
       className="bg-secondary border border-border rounded-lg p-3 md:p-4 w-full md:w-[280px] md:min-h-[300px]"
