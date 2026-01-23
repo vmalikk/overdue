@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/authOptions'
-import { 
-  fetchCalendarEvents, 
-  createCalendarEvent, 
+import {
+  fetchCalendarEvents,
+  createCalendarEvent,
   updateCalendarEvent,
-  deleteCalendarEvent 
+  deleteCalendarEvent
 } from '@/lib/calendar/googleCalendar'
 import { Assignment } from '@/types/assignment'
 
@@ -16,7 +16,7 @@ import { Assignment } from '@/types/assignment'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.accessToken) {
       return NextResponse.json(
         { error: 'Unauthorized. Please connect your Google Calendar.' },
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { 
+    const {
       assignments,
       calendarId = 'primary',
       direction = 'both' // 'import', 'export', or 'both'
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       exported: 0,
       updated: 0,
       errors: [] as string[],
+      exportedEvents: [] as { assignmentId: string; googleCalendarEventId: string }[],
       importedEvents: [] as { title: string; deadline: Date; googleCalendarEventId: string }[],
     }
 
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
         )
 
         const newEvents = events.filter((e) => !existingEventIds.has(e.id))
-        
+
         results.importedEvents = newEvents.map((e) => ({
           title: e.summary,
           deadline: e.start,
@@ -93,7 +94,10 @@ export async function POST(request: NextRequest) {
               assignment,
               calendarId
             )
-            // Note: The eventId should be saved to the assignment in the client
+            results.exportedEvents.push({
+              assignmentId: assignment.id,
+              googleCalendarEventId: eventId
+            })
             results.exported++
           }
         } catch (error) {
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.accessToken) {
       return NextResponse.json(
         { error: 'Unauthorized. Please connect your Google Calendar.' },

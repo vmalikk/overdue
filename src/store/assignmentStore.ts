@@ -62,7 +62,7 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   loadAssignments: async () => {
     const { userId } = get()
     if (!userId) return
-    
+
     set({ isLoading: true })
     try {
       const assignments = await db.getAllAssignments(userId)
@@ -72,26 +72,26 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       // Auto-sync check (Daily)
       const { config, setLastSync } = useCalendarStore.getState()
       if (config.connected && config.autoSync) {
-         const lastSync = config.lastSync ? new Date(config.lastSync) : null
-         const now = new Date()
-         const oneDay = 24 * 60 * 60 * 1000
-         
-         if (!lastSync || (now.getTime() - lastSync.getTime() > oneDay)) {
-             fetch('/api/calendar/sync', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({
-                     assignments,
-                     calendarId: config.calendarId || 'primary',
-                     direction: 'both'
-                 })
-             }).then(res => {
-                 if (res.ok) {
-                    setLastSync(new Date())
-                    console.log('Daily auto-sync completed')
-                 }
-             }).catch(e => console.error('Auto-sync failed', e))
-         }
+        const lastSync = config.lastSync ? new Date(config.lastSync) : null
+        const now = new Date()
+        const oneDay = 24 * 60 * 60 * 1000
+
+        if (!lastSync || (now.getTime() - lastSync.getTime() > oneDay)) {
+          fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignments,
+              calendarId: config.calendarId || 'primary',
+              direction: 'both'
+            })
+          }).then(res => {
+            if (res.ok) {
+              setLastSync(new Date())
+              console.log('Daily auto-sync completed')
+            }
+          }).catch(e => console.error('Auto-sync failed', e))
+        }
       }
     } catch (error) {
       console.error('Failed to load assignments:', error)
@@ -142,15 +142,42 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       // Instant Sync (Push to Calendar)
       const { config } = useCalendarStore.getState()
       if (config.connected) {
-         fetch('/api/calendar/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                assignments: [assignment],
-                calendarId: config.calendarId || 'primary',
-                direction: 'export'
-            })
-         }).catch(err => console.error('Instant sync failed', err))
+        fetch('/api/calendar/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignments: [assignment],
+            calendarId: config.calendarId || 'primary',
+            direction: 'export'
+          })
+        }).then(async (res) => {
+          if (res.ok) {
+            const data = await res.json()
+            if (data.results?.exportedEvents?.length > 0) {
+              const mapping = data.results.exportedEvents.find((m: any) => m.assignmentId === assignment.id)
+              if (mapping) {
+                try {
+                  // Use server update to persist googleCalendarEventId
+                  await db.updateAssignment(assignment.id, {
+                    googleCalendarEventId: mapping.googleCalendarEventId,
+                    calendarSynced: true
+                  })
+                  // Update local state
+                  set(state => ({
+                    assignments: state.assignments.map(a =>
+                      a.id === assignment.id
+                        ? { ...a, googleCalendarEventId: mapping.googleCalendarEventId, calendarSynced: true }
+                        : a
+                    )
+                  }))
+                  get().applyFilters()
+                } catch (err) {
+                  console.error('Failed to update assignment with Google ID', err)
+                }
+              }
+            }
+          }
+        }).catch(err => console.error('Instant sync failed', err))
       }
 
       return assignment
@@ -170,22 +197,22 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
         ),
       }))
       get().applyFilters()
-      
+
       // Instant Sync (Update)
       const { config } = useCalendarStore.getState()
       if (config.connected) {
-         const updatedAssignment = get().assignments.find(a => a.id === id)
-         if (updatedAssignment) {
-             fetch('/api/calendar/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    assignments: [updatedAssignment],
-                    calendarId: config.calendarId || 'primary',
-                    direction: 'export'
-                })
-             }).catch(err => console.error('Instant sync update failed', err))
-         }
+        const updatedAssignment = get().assignments.find(a => a.id === id)
+        if (updatedAssignment) {
+          fetch('/api/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignments: [updatedAssignment],
+              calendarId: config.calendarId || 'primary',
+              direction: 'export'
+            })
+          }).catch(err => console.error('Instant sync update failed', err))
+        }
       }
     } catch (error) {
       console.error('Failed to update assignment:', error)
@@ -346,7 +373,7 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   deleteCompleted: async () => {
     const { assignments, userId } = get()
     if (!userId) return
-    
+
     const completed = assignments.filter((a) => a.status === AssignmentStatus.COMPLETED)
 
     try {
