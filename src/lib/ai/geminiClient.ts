@@ -327,7 +327,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown.`
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-1.5-flash',
       contents: [
         {
           role: 'user',
@@ -344,7 +344,14 @@ IMPORTANT: Return ONLY valid JSON, no markdown.`
       ]
     })
     
+    // Check if response is successful
+    if (!response || !response.text) {
+         console.error('Gemini response missing text', response)
+         throw new Error('Empty response from AI')
+    }
+
     const responseText = response.text || ''
+    console.log('Gemini raw response:', responseText.substring(0, 100) + '...')
     
     let jsonStr = responseText
     const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -369,7 +376,12 @@ IMPORTANT: Return ONLY valid JSON, no markdown.`
       description: parsed.description,
     }
   } catch (error) {
-    console.error('Error parsing syllabus:', error)
+    if (error instanceof Error) {
+        console.error('Error parsing syllabus - Message:', error.message)
+        console.error('Error parsing syllabus - Stack:', error.stack)
+    } else {
+        console.error('Error parsing syllabus - Unknown:', error)
+    }
     throw new Error('Failed to parse syllabus')
   }
 }

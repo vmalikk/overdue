@@ -63,8 +63,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in syllabus parsing route:', error)
+    // Return the actual error message if possible to help debugging
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process syllabus'
     return NextResponse.json(
-      { error: 'Failed to process syllabus' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
