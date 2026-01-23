@@ -232,7 +232,7 @@ export function CourseManager() {
                     onChange={handleSyllabusUpload}
                 />
                 <Button 
-                    variant="outline" 
+                    variant="secondary" 
                     size="sm" 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isParsing}

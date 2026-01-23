@@ -74,7 +74,7 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
              )}
 
              <div className="pt-4 flex justify-end gap-2 border-t border-border mt-4">
-                <Button variant="outline" onClick={onClose}>Close</Button>
+                <Button variant="secondary" onClick={onClose}>Close</Button>
                 {onEdit && <Button onClick={onEdit}>Edit Course</Button>}
              </div>
           </div>
