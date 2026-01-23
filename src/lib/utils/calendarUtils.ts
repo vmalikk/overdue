@@ -12,6 +12,7 @@ export interface CalendarEvent {
   isAllDay?: boolean
   color?: string
   type?: 'event' | 'assignment' | 'office-hour'
+  assignmentId?: string
 }
 
 // Get week dates (Sunday to Saturday)
@@ -197,7 +198,7 @@ export const DAY_NAMES_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thur
 
 export function getOfficeHourEvents(courses: Course[], rangeStart: Date, rangeEnd: Date): CalendarEvent[] {
   const events: CalendarEvent[] = []
-  
+
   // Normalize range
   const start = startOfDay(rangeStart)
   const end = endOfDay(rangeEnd)
@@ -210,38 +211,38 @@ export function getOfficeHourEvents(courses: Course[], rangeStart: Date, rangeEn
     courses.forEach(course => {
       if (course.officeHours && course.active) {
         course.officeHours.forEach(oh => {
-           // Basic fuzzy match for day name
-           if (oh.day.toLowerCase() === dayName.toLowerCase()) {
-              try {
-                  // Parse times
-                  // oh.startTime is "HH:MM" e.g. "14:00"
-                  const [startHour, startMin] = oh.startTime.split(':').map(Number)
-                  const [endHour, endMin] = oh.endTime.split(':').map(Number)
-                  
-                  if (!isNaN(startHour) && !isNaN(endHour)) {
-                      const eventStart = set(current, { hours: startHour, minutes: startMin })
-                      const eventEnd = set(current, { hours: endHour, minutes: endMin })
-                      
-                      events.push({
-                          id: `oh-${course.id}-${current.getTime()}-${oh.startTime}`,
-                          summary: `OH: ${course.code}`,
-                          description: `${course.name} Office Hours\nLocation: ${oh.location}`,
-                          start: eventStart,
-                          end: eventEnd,
-                          color: course.color,
-                          type: 'office-hour'
-                      })
-                  }
-              } catch (e) {
-                  // Ignore parsing errors
+          // Basic fuzzy match for day name
+          if (oh.day.toLowerCase() === dayName.toLowerCase()) {
+            try {
+              // Parse times
+              // oh.startTime is "HH:MM" e.g. "14:00"
+              const [startHour, startMin] = oh.startTime.split(':').map(Number)
+              const [endHour, endMin] = oh.endTime.split(':').map(Number)
+
+              if (!isNaN(startHour) && !isNaN(endHour)) {
+                const eventStart = set(current, { hours: startHour, minutes: startMin })
+                const eventEnd = set(current, { hours: endHour, minutes: endMin })
+
+                events.push({
+                  id: `oh-${course.id}-${current.getTime()}-${oh.startTime}`,
+                  summary: `OH: ${course.code}`,
+                  description: `${course.name} Office Hours\nLocation: ${oh.location}`,
+                  start: eventStart,
+                  end: eventEnd,
+                  color: course.color,
+                  type: 'office-hour'
+                })
               }
-           }
+            } catch (e) {
+              // Ignore parsing errors
+            }
+          }
         })
       }
     })
-    
+
     current = addDays(current, 1)
   }
-  
+
   return events
 }
