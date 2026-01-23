@@ -162,6 +162,7 @@ export function QuickAddForm() {
       courseId: '',
       deadline: new Date(),
       priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
+      category: AssignmentCategory.ASSIGNMENT,
       estimatedHours: undefined,
       notes: '',
       file: undefined,
