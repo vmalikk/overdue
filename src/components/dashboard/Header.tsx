@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
+import { useUIStore } from '@/store/uiStore'
 
 export function Header() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const { user, signOut, loading } = useAuth()
+  const { openSettings } = useUIStore()
 
   // Update time every second for real-time display
   useEffect(() => {
@@ -41,9 +43,9 @@ export function Header() {
                 <>
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium text-sm">
                     {(user.prefs as Record<string, string>)?.avatar ? (
-                      <img 
-                        src={(user.prefs as Record<string, string>).avatar} 
-                        alt="Profile" 
+                      <img
+                        src={(user.prefs as Record<string, string>).avatar}
+                        alt="Profile"
                         className="w-8 h-8 rounded-full"
                       />
                     ) : (
@@ -52,7 +54,7 @@ export function Header() {
                   </div>
                   {/* Settings Button Mobile */}
                   <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                    onClick={openSettings}
                     className="p-2 text-text-muted hover:text-text-primary hover:bg-accent rounded-lg transition-colors"
                   >
                     <span className="text-xl">⚙️</span>
@@ -84,13 +86,13 @@ export function Header() {
                 </div>
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
                   {(user.prefs as Record<string, string>)?.avatar ? (
-                    <img 
-                      src={(user.prefs as Record<string, string>).avatar} 
-                      alt="Profile" 
+                    <img
+                      src={(user.prefs as Record<string, string>).avatar}
+                      alt="Profile"
                       className="w-10 h-10 rounded-full"
                     />
                   ) : (
-                     user.email?.charAt(0).toUpperCase()
+                    user.email?.charAt(0).toUpperCase()
                   )}
                 </div>
                 <button
@@ -117,17 +119,17 @@ export function Header() {
                   <span>{date}</span>
                 </div>
               </div>
-              
+
               {/* Settings Button */}
-              <button 
-                  onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
-                  className="p-2 rounded-full hover:bg-secondary text-text-muted hover:text-text-primary transition-colors"
-                  title="Settings"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
+              <button
+                onClick={openSettings}
+                className="p-2 rounded-full hover:bg-secondary text-text-muted hover:text-text-primary transition-colors"
+                title="Settings"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
               </button>
             </div>
           </div>
