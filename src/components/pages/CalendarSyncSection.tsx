@@ -111,42 +111,45 @@ export function CalendarSyncSection() {
   // It is imported in line 8? No, only useAssignmentStore.
   // I need to import useCourseStore at line 8.
 
+  // Reusable function to save events to DB
+  const saveImportedEvents = async (eventsToSave: any[]) => {
+    const defaultCourse = useCourseStore.getState().courses.find(c => c.active)
+    const courseIdToUse = defaultCourse?.id || 'general-import'
+    let savedCount = 0
+
+    for (const event of eventsToSave) {
+      try {
+        await useAssignmentStore.getState().addAssignment({
+          title: event.title,
+          description: 'Imported from Google Calendar',
+          courseId: courseIdToUse,
+          deadline: new Date(event.deadline),
+          priority: 'medium',
+          status: 'not_started',
+          category: 'event',
+          googleCalendarEventId: event.googleCalendarEventId,
+          notes: JSON.stringify({
+            end: event.end || new Date(new Date(event.deadline).getTime() + 60 * 60 * 1000).toISOString(),
+            originalEvent: true
+          })
+        } as any)
+        savedCount++
+      } catch (e) {
+        console.error('Failed to save imported event', e)
+      }
+    }
+    return savedCount
+  }
+
   const handleImportEvents = async () => {
     if (importableEvents.length === 0) return
 
     setIsImporting(true)
     try {
-      // Always persist imported events as assignments in Appwrite DB
-      const defaultCourse = useCourseStore.getState().courses.find(c => c.active)
-      const courseIdToUse = defaultCourse?.id || 'general-import'
-
-      let importedCount = 0
-      for (const event of importableEvents) {
-        try {
-          // This will persist to Appwrite DB, making it available on all devices
-          await useAssignmentStore.getState().addAssignment({
-            title: event.title,
-            description: 'Imported from Google Calendar',
-            courseId: courseIdToUse,
-            deadline: new Date(event.deadline),
-            priority: 'medium',
-            status: 'not_started',
-            category: 'event', // Import as Event
-            googleCalendarEventId: event.googleCalendarEventId,
-            // Store end time in notes as JSON since we don't have an 'end' field on Assignment
-            notes: JSON.stringify({
-              end: event.end || new Date(new Date(event.deadline).getTime() + 60 * 60 * 1000).toISOString(), // Default 1h
-              originalEvent: true
-            })
-          } as any)
-          importedCount++
-        } catch (e) {
-          console.error('Failed to save imported event', e)
-        }
-      }
-      showToast(`Imported ${importedCount} events`, 'success')
+      const count = await saveImportedEvents(importableEvents)
+      showToast(`Imported ${count} events`, 'success')
       setImportableEvents([])
-      await loadAssignments() // Ensure state is up to date
+      await loadAssignments()
       setLastSync(new Date())
     } catch (error) {
       showToast('Failed to import events', 'error')
@@ -208,7 +211,13 @@ export function CalendarSyncSection() {
       const data = await response.json()
 
       if (data.success) {
-        showToast(data.message, 'success')
+        // Automatically save any imported events returned by the server
+        let savedCount = 0
+        if (data.results.importedEvents && data.results.importedEvents.length > 0) {
+          savedCount = await saveImportedEvents(data.results.importedEvents)
+        }
+
+        showToast(`Sync complete. Saved ${savedCount} new events.`, 'success')
         syncSuccess()
         setLastSync(new Date())
         loadAssignments()

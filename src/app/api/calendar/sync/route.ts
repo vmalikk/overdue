@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       updated: 0,
       errors: [] as string[],
       exportedEvents: [] as { assignmentId: string; googleCalendarEventId: string }[],
-      importedEvents: [] as { title: string; deadline: Date; googleCalendarEventId: string }[],
+      importedEvents: [] as { title: string; deadline: Date; end: Date | string; googleCalendarEventId: string }[],
     }
 
     // Import from Google Calendar
@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
         results.importedEvents = newEvents.map((e) => ({
           title: e.summary,
           deadline: e.start,
+          end: e.end,
           googleCalendarEventId: e.id,
         }))
         results.imported = newEvents.length

@@ -15,12 +15,26 @@ interface DatePickerProps {
 export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
   ({ value, onChange, label, error, showTime = false, min, max }, ref) => {
     const handleDateChange = (dateString: string) => {
-      const newDate = new Date(dateString)
+      // Manual parsing to avoid UTC conversion
+      const [year, month, day] = dateString.split('-').map(Number)
+
+      // If incomplete date (e.g. typing), ignore
+      if (!year || !month || !day) return
+
+      const newDate = new Date(year, month - 1, day)
+
       if (!isNaN(newDate.getTime())) {
         // Preserve time if it exists
         if (value && showTime) {
           newDate.setHours(value.getHours())
           newDate.setMinutes(value.getMinutes())
+        } else if (!value && showTime) {
+          // Default to end of day if no previous value? 
+          // Or just keep it 00:00? The user usually wants *some* time.
+          // Current logic was preserving value time or defaulting.
+          // Let's default to current time or 23:59? 
+          // Implementation below defaults timeValue to 23:59 for display if null.
+          newDate.setHours(23, 59)
         }
         onChange(newDate)
       }

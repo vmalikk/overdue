@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -19,10 +19,17 @@ import { DEFAULTS, LIMITS } from '@/config/constants'
 import { MAX_FILE_SIZE } from '@/lib/appwrite/storage'
 
 export function QuickAddForm() {
-  const { isQuickAddOpen, closeQuickAdd, showToast } = useUIStore()
-  const { addAssignment } = useAssignmentStore()
+  const {
+    isQuickAddOpen, closeQuickAdd,
+    isEditModalOpen, closeEditModal, editingAssignmentId,
+    showToast
+  } = useUIStore()
+  const { addAssignment, updateAssignment, assignments } = useAssignmentStore()
   const { getCourseByCode } = useCourseStore()
   const { isParsingEnabled, clearParseResult } = useAIStore()
+
+  const isOpen = isQuickAddOpen || isEditModalOpen
+  const isEditing = isEditModalOpen && !!editingAssignmentId
 
   const [formData, setFormData] = useState({
     title: '',
@@ -35,6 +42,39 @@ export function QuickAddForm() {
     notes: '',
     file: undefined as File | undefined,
   })
+
+  // Hydrate form when entering edit mode
+  useEffect(() => {
+    if (isEditing && editingAssignmentId) {
+      const assignment = assignments.find(a => a.id === editingAssignmentId)
+      if (assignment) {
+        setFormData({
+          title: assignment.title,
+          description: assignment.description || '',
+          courseId: assignment.courseId,
+          deadline: new Date(assignment.deadline),
+          priority: assignment.priority,
+          category: assignment.category,
+          estimatedHours: assignment.estimatedHours,
+          notes: assignment.notes || '',
+          file: undefined, // Cannot edit file easily yet
+        })
+      }
+    } else if (!isOpen) {
+      // Reset when closed
+      setFormData({
+        title: '',
+        description: '',
+        courseId: '',
+        deadline: new Date(),
+        priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
+        category: AssignmentCategory.ASSIGNMENT,
+        estimatedHours: undefined,
+        notes: '',
+        file: undefined,
+      })
+    }
+  }, [isEditing, editingAssignmentId, assignments, isOpen])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [parsedResult, setParsedResult] = useState<NLPParseResult | null>(null)
@@ -73,7 +113,7 @@ export function QuickAddForm() {
       estimatedHours: parsed.estimatedHours || prev.estimatedHours,
       description: parsed.description || prev.description,
     }))
-    
+
     // Try to match course by code
     if (parsed.courseCode) {
       const matchedCourse = getCourseByCode(parsed.courseCode)
@@ -85,7 +125,7 @@ export function QuickAddForm() {
 
   const handleAcceptParsed = async () => {
     if (!parsedResult) return
-    
+
     // If course is still missing, show manual form
     if (!formData.courseId) {
       setShowManualForm(true)
@@ -132,46 +172,55 @@ export function QuickAddForm() {
     }
 
     try {
-      await addAssignment({
-        title: formData.title.trim(),
-        description: formData.description.trim() || undefined,
-        courseId: formData.courseId,
-        deadline: formData.deadline,
-        priority: formData.priority,
-        status: AssignmentStatus.NOT_STARTED,
-        category: formData.category,
-        estimatedHours: formData.estimatedHours,
-        notes: formData.notes.trim() || undefined,
-        file: formData.file,
-        aiParsed: !!parsedResult,
-        aiConfidence: parsedResult?.confidence,
-      })
-
-      showToast('Assignment added successfully', 'success')
+      if (isEditing && editingAssignmentId) {
+        await updateAssignment(editingAssignmentId, {
+          title: formData.title.trim(),
+          description: formData.description.trim() || undefined,
+          courseId: formData.courseId,
+          deadline: formData.deadline,
+          priority: formData.priority,
+          category: formData.category,
+          estimatedHours: formData.estimatedHours,
+          notes: formData.notes.trim() || undefined,
+          // File update not supported in quick edit yet
+        })
+        showToast('Assignment updated successfully', 'success')
+      } else {
+        await addAssignment({
+          title: formData.title.trim(),
+          description: formData.description.trim() || undefined,
+          courseId: formData.courseId,
+          deadline: formData.deadline,
+          priority: formData.priority,
+          status: AssignmentStatus.NOT_STARTED,
+          category: formData.category,
+          estimatedHours: formData.estimatedHours,
+          notes: formData.notes.trim() || undefined,
+          file: formData.file,
+          aiParsed: !!parsedResult,
+          aiConfidence: parsedResult?.confidence,
+        })
+        showToast('Assignment added successfully', 'success')
+      }
       handleClose()
     } catch (error: any) {
-      showToast(error.message || 'Failed to add assignment', 'error')
-      console.error('Error adding assignment:', error)
+      showToast(error.message || `Failed to ${isEditing ? 'update' : 'add'} assignment`, 'error')
+      console.error('Error saving assignment:', error)
     }
   }
 
   const handleClose = () => {
-    setFormData({
-      title: '',
-      description: '',
-      courseId: '',
-      deadline: new Date(),
-      priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
-      category: AssignmentCategory.ASSIGNMENT,
-      estimatedHours: undefined,
-      notes: '',
-      file: undefined,
-    })
+    // Reset form data is handled by useEffect when isOpen becomes false
     setErrors({})
     setParsedResult(null)
     setShowManualForm(false)
     clearParseResult()
-    closeQuickAdd()
+
+    if (isEditing) {
+      closeEditModal()
+    } else {
+      closeQuickAdd()
+    }
   }
 
   const priorityOptions = [
@@ -181,14 +230,14 @@ export function QuickAddForm() {
   ]
 
   return (
-    <Modal isOpen={isQuickAddOpen} onClose={handleClose} title="Add New Assignment" size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} title={isEditing ? "Edit Assignment" : "Add New Assignment"} size="lg">
       {/* AI Parsing Input */}
       {isParsingEnabled && !parsedResult && !showManualForm && (
         <div className="mb-6 pb-6 border-b border-border">
           <p className="text-sm text-text-muted mb-3">
             ✨ Try AI parsing - describe your assignment naturally:
           </p>
-          <NLPInput 
+          <NLPInput
             onParsed={handleParsed}
             placeholder="e.g., ECE 306 lab due Friday 5pm, high priority"
           />
@@ -214,125 +263,125 @@ export function QuickAddForm() {
 
       {/* Manual Form */}
       {(showManualForm || !isParsingEnabled) && (
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Title */}
-        <Input
-          label="Title"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          error={errors.title}
-          placeholder="e.g., Lab Report on Digital Circuits"
-          required
-          maxLength={LIMITS.ASSIGNMENT_TITLE_MAX}
-        />
-
-        {/* Course */}
-        <CourseSelect
-          label="Course"
-          value={formData.courseId}
-          onChange={(courseId) => setFormData({ ...formData, courseId })}
-          error={errors.courseId}
-          required
-        />
-
-        {/* Deadline */}
-        <DatePicker
-          label="Deadline"
-          value={formData.deadline}
-          onChange={(deadline) => setFormData({ ...formData, deadline })}
-          error={errors.deadline}
-          showTime
-        />
-
-        {/* Priority */}
-        <Select
-          label="Priority"
-          value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
-          options={priorityOptions}
-        />
-
-        {/* Category */}
-        <Select
-          label="Category"
-          value={formData.category}
-          onChange={(e) => setFormData({ ...formData, category: e.target.value as AssignmentCategory })}
-          options={[
-            { value: AssignmentCategory.ASSIGNMENT, label: 'Assignment' },
-            { value: AssignmentCategory.EXAM, label: 'Exam' },
-            { value: AssignmentCategory.QUIZ, label: 'Quiz' },
-            { value: AssignmentCategory.HOMEWORK, label: 'Homework' },
-            { value: AssignmentCategory.LAB, label: 'Lab' },
-            { value: AssignmentCategory.PROJECT, label: 'Project' },
-            { value: AssignmentCategory.DISCUSSION, label: 'Discussion' },
-            { value: AssignmentCategory.OTHER, label: 'Other' },
-          ]}
-        />
-
-        {/* Estimated Hours */}
-        <Input
-          label="Estimated Hours (optional)"
-          type="number"
-          min="0"
-          step="0.5"
-          value={formData.estimatedHours || ''}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              estimatedHours: e.target.value ? parseFloat(e.target.value) : undefined,
-            })
-          }
-          placeholder="e.g., 3.5"
-        />
-
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">
-            Description (optional)
-          </label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Additional details about the assignment..."
-            maxLength={LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
-            rows={3}
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-priority-medium resize-none"
-          />
-          <p className="mt-1 text-xs text-text-muted">
-            {formData.description.length} / {LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
-          </p>
-        </div>
-
-        {/* File Upload */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">
-            Attachment (max 10MB)
-          </label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
           <Input
-            type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file && file.size > MAX_FILE_SIZE) {
-                setErrors({ ...errors, file: 'File too large (max 10MB)' })
-                return
-              }
-              setErrors({ ...errors, file: '' })
-              setFormData({ ...formData, file: file })
-            }}
-            error={errors.file}
+            label="Title"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            error={errors.title}
+            placeholder="e.g., Lab Report on Digital Circuits"
+            required
+            maxLength={LIMITS.ASSIGNMENT_TITLE_MAX}
           />
-        </div>
 
-        {/* Buttons */}
-        <div className="flex gap-3 pt-4">
-          <Button type="submit" variant="primary" fullWidth>
-            Add Assignment
-          </Button>
-          <Button type="button" variant="secondary" onClick={handleClose}>
-            Cancel
-          </Button>
-        </div>
-      </form>
+          {/* Course */}
+          <CourseSelect
+            label="Course"
+            value={formData.courseId}
+            onChange={(courseId) => setFormData({ ...formData, courseId })}
+            error={errors.courseId}
+            required
+          />
+
+          {/* Deadline */}
+          <DatePicker
+            label="Deadline"
+            value={formData.deadline}
+            onChange={(deadline) => setFormData({ ...formData, deadline })}
+            error={errors.deadline}
+            showTime
+          />
+
+          {/* Priority */}
+          <Select
+            label="Priority"
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
+            options={priorityOptions}
+          />
+
+          {/* Category */}
+          <Select
+            label="Category"
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value as AssignmentCategory })}
+            options={[
+              { value: AssignmentCategory.ASSIGNMENT, label: 'Assignment' },
+              { value: AssignmentCategory.EXAM, label: 'Exam' },
+              { value: AssignmentCategory.QUIZ, label: 'Quiz' },
+              { value: AssignmentCategory.HOMEWORK, label: 'Homework' },
+              { value: AssignmentCategory.LAB, label: 'Lab' },
+              { value: AssignmentCategory.PROJECT, label: 'Project' },
+              { value: AssignmentCategory.DISCUSSION, label: 'Discussion' },
+              { value: AssignmentCategory.OTHER, label: 'Other' },
+            ]}
+          />
+
+          {/* Estimated Hours */}
+          <Input
+            label="Estimated Hours (optional)"
+            type="number"
+            min="0"
+            step="0.5"
+            value={formData.estimatedHours || ''}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                estimatedHours: e.target.value ? parseFloat(e.target.value) : undefined,
+              })
+            }
+            placeholder="e.g., 3.5"
+          />
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              Description (optional)
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Additional details about the assignment..."
+              maxLength={LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
+              rows={3}
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-priority-medium resize-none"
+            />
+            <p className="mt-1 text-xs text-text-muted">
+              {formData.description.length} / {LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
+            </p>
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              Attachment (max 10MB)
+            </label>
+            <Input
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file && file.size > MAX_FILE_SIZE) {
+                  setErrors({ ...errors, file: 'File too large (max 10MB)' })
+                  return
+                }
+                setErrors({ ...errors, file: '' })
+                setFormData({ ...formData, file: file })
+              }}
+              error={errors.file}
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button type="submit" variant="primary" fullWidth>
+              Add Assignment
+            </Button>
+            <Button type="button" variant="secondary" onClick={handleClose}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       )}
     </Modal>
   )
