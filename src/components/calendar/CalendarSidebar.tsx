@@ -18,10 +18,10 @@ interface CalendarSidebarProps {
   onDateChange?: (date: Date) => void
 }
 
-export function CalendarSidebar({ 
-  calendars, 
-  selectedCalendarIds, 
-  onToggleCalendar, 
+export function CalendarSidebar({
+  calendars,
+  selectedCalendarIds,
+  onToggleCalendar,
   onConnect,
   isConnected,
   userEmail,
@@ -37,43 +37,43 @@ export function CalendarSidebar({
       onConnect()
     }
   }
-  
+
   return (
     <div className="w-64 flex-shrink-0 flex flex-col border-r border-border bg-background pt-4 h-full overflow-y-auto">
       {/* Mini Calendar Container */}
-      <div className="pl-2 pr-4 mb-6">
+      <div className="pl-0 pr-0 mb-6 px-2">
         <MiniCalendar value={currentDate} onChange={onDateChange} />
       </div>
 
       {/* Calendar Accounts */}
       <div className="px-4 flex-1">
         <div className="flex items-center justify-between mb-2">
-           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-             Creating
-           </h3>
-           <div className="flex gap-1">
-             {/* Icons would go here */}
-           </div>
+          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+            Creating
+          </h3>
+          <div className="flex gap-1">
+            {/* Icons would go here */}
+          </div>
         </div>
 
         <div className="mb-6">
-           <div className="flex items-center gap-2 p-2 rounded hover:bg-secondary cursor-pointer">
-              <div className="w-4 h-4 rounded border border-text-muted flex items-center justify-center">
-                 <div className="w-2 h-2 rounded bg-primary" />
-              </div>
-              <span className="text-sm font-medium text-text-primary">Assignments</span>
-           </div>
+          <div className="flex items-center gap-2 p-2 rounded hover:bg-secondary cursor-pointer">
+            <div className="w-4 h-4 rounded border border-text-muted flex items-center justify-center">
+              <div className="w-2 h-2 rounded bg-primary" />
+            </div>
+            <span className="text-sm font-medium text-text-primary">Assignments</span>
+          </div>
         </div>
 
         <div className="flex items-center justify-between mb-2 mt-6">
-           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-             Calendars
-           </h3>
-           <button onClick={handleConnectClick} className="text-text-muted hover:text-text-primary" title="Add Calendar Account">
-             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-               <path d="M12 5v14M5 12h14" />
-             </svg>
-           </button>
+          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+            Calendars
+          </h3>
+          <button onClick={handleConnectClick} className="text-text-muted hover:text-text-primary" title="Add Calendar Account">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
         </div>
 
         <div className="space-y-1">
@@ -82,21 +82,21 @@ export function CalendarSidebar({
               {userEmail}
             </div>
           )}
-          
+
           {isConnected && calendars.length > 0 ? (
             calendars.map(cal => (
-              <div 
-                key={cal.id} 
+              <div
+                key={cal.id}
                 className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary cursor-pointer group"
                 onClick={() => onToggleCalendar(cal.id)}
               >
                 <div className={clsx(
                   "w-4 h-4 rounded border flex items-center justify-center transition-colors",
-                  selectedCalendarIds.includes(cal.id) 
-                    ? "border-transparent" 
+                  selectedCalendarIds.includes(cal.id)
+                    ? "border-transparent"
                     : "border-text-muted"
                 )}
-                style={{ backgroundColor: selectedCalendarIds.includes(cal.id) ? (cal.backgroundColor || '#3b82f6') : 'transparent' }}
+                  style={{ backgroundColor: selectedCalendarIds.includes(cal.id) ? (cal.backgroundColor || '#3b82f6') : 'transparent' }}
                 >
                   {selectedCalendarIds.includes(cal.id) && (
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
@@ -110,22 +110,22 @@ export function CalendarSidebar({
             ))
           ) : (
             <div className="px-2 py-2">
-               <Button variant="secondary" size="sm" onClick={onConnect} className="w-full justify-start text-xs">
-                 Connect Google
-               </Button>
+              <Button variant="secondary" size="sm" onClick={onConnect} className="w-full justify-start text-xs">
+                Connect Google
+              </Button>
             </div>
           )}
         </div>
       </div>
-      
+
       <div className="p-4 border-t border-border">
-         <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-             Notion Apps
-         </h3>
-         <div className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary cursor-pointer text-text-secondary">
-             <div className="w-4 h-4 bg-primary/20 rounded"></div>
-             <span className="text-sm">Overdue</span>
-         </div>
+        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+          Notion Apps
+        </h3>
+        <div className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary cursor-pointer text-text-secondary">
+          <div className="w-4 h-4 bg-primary/20 rounded"></div>
+          <span className="text-sm">Overdue</span>
+        </div>
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/dashboard/Header'
 import { Navigation, TabType } from '@/components/layout/Navigation'
 import { AssignmentTable } from '@/components/dashboard/AssignmentTable'
@@ -19,17 +19,29 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
 import { useUIStore } from '@/store/uiStore'
-import { useEffect } from 'react'
 
 export default function Dashboard() {
-  const [currentTab, setCurrentTab] = useState<TabType>('dashboard')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Initialize from URL or default to 'dashboard'
+  const initialTab = (searchParams?.get('tab') as TabType) || 'dashboard'
+  const [currentTab, setCurrentTab] = useState<TabType>(initialTab)
+
   const { user, loading } = useAuth()
   const { openQuickAdd } = useUIStore()
-  const router = useRouter()
-  
+
+  // Update URL when tab changes
+  const handleTabChange = (tab: TabType) => {
+    setCurrentTab(tab)
+    const params = new URLSearchParams(window.location.search)
+    params.set('tab', tab)
+    router.push(`?${params.toString()}`)
+  }
+
   // Listen for open-settings event
   useEffect(() => {
-    const handleOpenSettings = () => setCurrentTab('settings')
+    const handleOpenSettings = () => handleTabChange('settings')
     window.addEventListener('open-settings', handleOpenSettings)
     return () => window.removeEventListener('open-settings', handleOpenSettings)
   }, [])
@@ -53,7 +65,7 @@ export default function Dashboard() {
     <>
       <div className="min-h-screen bg-background">
         <Header />
-        <Navigation currentTab={currentTab} onTabChange={setCurrentTab} />
+        <Navigation currentTab={currentTab} onTabChange={handleTabChange} />
 
         <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
           {/* Dashboard Tab */}
@@ -82,15 +94,15 @@ export default function Dashboard() {
 
           {/* Assignments Tab */}
           {currentTab === 'assignments' && (
-             <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-text-primary">All Assignments</h2>
-                  <Button variant="primary" onClick={openQuickAdd}>
-                    Add Assignment
-                  </Button>
-                </div>
-                <AssignmentTable filterStatus="all" filterTime="all" />
-             </div>
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-text-primary">All Assignments</h2>
+                <Button variant="primary" onClick={openQuickAdd}>
+                  Add Assignment
+                </Button>
+              </div>
+              <AssignmentTable filterStatus="all" filterTime="all" />
+            </div>
           )}
 
           {/* Statistics Tab */}
@@ -116,15 +128,15 @@ export default function Dashboard() {
 
         {/* Modals */}
         <QuickAddForm />
-        
+
         {/* Settings Modal/Overlay */}
-        <Modal 
-          isOpen={currentTab === 'settings'} 
-          onClose={() => setCurrentTab('dashboard')} 
+        <Modal
+          isOpen={currentTab === 'settings'}
+          onClose={() => handleTabChange('dashboard')}
           title="Settings"
           size="lg"
         >
-           <SettingsPage />
+          <SettingsPage />
         </Modal>
       </div>
 

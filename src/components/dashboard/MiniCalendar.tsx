@@ -89,7 +89,7 @@ export function MiniCalendar({ value, onChange, disabled }: MiniCalendarProps) {
 
   return (
     <div
-      className="bg-secondary border border-border rounded-lg p-3 md:p-4 w-full md:w-[280px] md:min-h-[300px]"
+      className="bg-secondary border border-border rounded-lg p-3 md:p-4 w-full"
     >
       {/* Header with month navigation */}
       <div className="flex items-center justify-between mb-3 md:mb-4">
