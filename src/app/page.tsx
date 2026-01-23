@@ -49,7 +49,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 md:gap-8">
               {/* Main content - Assignment Table */}
               <div className="w-full order-2 lg:order-1">
-                <AssignmentTable />
+                <AssignmentTable filterStatus="incomplete" filterTime="week" />
               </div>
 
               {/* Sidebar - Calendars */}
@@ -66,6 +66,14 @@ export default function Dashboard() {
                 <StorageUsage />
               </aside>
             </div>
+          )}
+
+          {/* Assignments Tab */}
+          {currentTab === 'assignments' && (
+             <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-text-primary">All Assignments</h2>
+                <AssignmentTable filterStatus="all" filterTime="all" />
+             </div>
           )}
 
           {/* Statistics Tab */}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useCourseStore } from '@/store/courseStore'
+import { useAssignmentStore } from '@/store/assignmentStore'
 import { useUIStore } from '@/store/uiStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,11 +10,13 @@ import { CourseBadge } from './CourseBadge'
 import { CourseDetailModal } from './CourseDetailModal'
 import { DEFAULT_COURSE_COLORS, CourseFormData, OfficeHour, GradeWeight } from '@/types/course'
 import { ParsedSyllabus } from '@/types/ai'
+import { AssignmentCategory, AssignmentStatus, Priority } from '@/types/assignment'
 import { LIMITS } from '@/config/constants'
 import clsx from 'clsx'
 
 export function CourseManager() {
   const { courses, loadCourses, addCourse, updateCourse, deleteCourse } = useCourseStore()
+  const { addAssignment } = useAssignmentStore()
   const { showToast } = useUIStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -21,6 +24,7 @@ export function CourseManager() {
   const [isParsing, setIsParsing] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null)
+  const [pendingAssignments, setPendingAssignments] = useState<ParsedSyllabus['assignments'] | null>(null)
   
   const [formData, setFormData] = useState<CourseFormData>({
     code: '',
@@ -50,6 +54,7 @@ export function CourseManager() {
     })
     setIsAdding(false)
     setEditingId(null)
+    setPendingAssignments(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -62,13 +67,47 @@ export function CourseManager() {
     }
 
     try {
+      let targetCourseId = editingId
+
       if (editingId) {
         await updateCourse(editingId, formData)
         showToast('Course updated successfully', 'success')
       } else {
-        await addCourse(formData)
+        const newCourse = await addCourse(formData)
+        targetCourseId = newCourse.id
         showToast('Course added successfully', 'success')
       }
+
+      // Add pending assignments if any
+      if (targetCourseId && pendingAssignments && pendingAssignments.length > 0) {
+        let count = 0
+        for (const pa of pendingAssignments) {
+          try {
+             let category = AssignmentCategory.ASSIGNMENT
+             const typeLower = pa.type?.toLowerCase() || ''
+             if (typeLower.includes('exam')) category = AssignmentCategory.EXAM
+             else if (typeLower.includes('quiz')) category = AssignmentCategory.QUIZ
+             else if (typeLower.includes('project')) category = AssignmentCategory.PROJECT
+             
+             await addAssignment({
+               title: pa.title,
+               courseId: targetCourseId,
+               deadline: new Date(pa.date),
+               priority: Priority.MEDIUM,
+               status: AssignmentStatus.NOT_STARTED,
+               category: category,
+               aiParsed: true
+             })
+             count++
+          } catch (err) {
+            console.error('Failed to add parsed assignment', err)
+          }
+        }
+        if (count > 0) {
+           showToast(`Added ${count} assignments from syllabus`, 'success')
+        }
+      }
+
       resetForm()
     } catch (error) {
       showToast('Failed to save course', 'error')
@@ -136,7 +175,12 @@ export function CourseManager() {
         gradeWeights: result.gradeWeights || prev.gradeWeights
       }))
 
-      showToast('Syllabus parsed successfully', 'success')
+      if (result.assignments && result.assignments.length > 0) {
+        setPendingAssignments(result.assignments)
+        showToast(`Syllabus parsed: Found ${result.assignments.length} assignments`, 'success')
+      } else {
+        showToast('Syllabus parsed successfully', 'success')
+      }
     } catch (error) {
       console.error(error)
       showToast('Failed to parse syllabus', 'error')

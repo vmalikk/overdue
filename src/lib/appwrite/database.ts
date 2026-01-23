@@ -1,5 +1,5 @@
 import { Client, Databases, Query, ID } from "appwrite";
-import { Assignment, AssignmentStatus, Priority } from '@/types/assignment';
+import { Assignment, AssignmentStatus, Priority, AssignmentCategory } from '@/types/assignment';
 import { Course } from '@/types/course';
 
 const client = new Client()
@@ -45,6 +45,7 @@ export async function addAssignment(assignment: Omit<Assignment, 'id' | 'created
       deadline: assignment.deadline instanceof Date ? assignment.deadline.toISOString() : assignment.deadline,
       priority: assignment.priority,
       status: assignment.status,
+      category: assignment.category || AssignmentCategory.ASSIGNMENT,
       estimatedHours: assignment.estimatedHours || null,
       tags: assignment.tags || [],
       notes: assignment.notes || null,
@@ -187,6 +188,7 @@ function mapDocumentToAssignment(doc: any): Assignment {
     deadline: new Date(doc.deadline),
     priority: doc.priority as Priority,
     status: doc.status as AssignmentStatus,
+    category: (doc.category as AssignmentCategory) || AssignmentCategory.ASSIGNMENT,
     estimatedHours: doc.estimatedHours,
     tags: doc.tags || [],
     notes: doc.notes,

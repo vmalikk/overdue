@@ -13,7 +13,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { useAIStore } from '@/store/aiStore'
-import { Priority } from '@/types/assignment'
+import { Priority, AssignmentCategory } from '@/types/assignment'
 import { NLPParseResult } from '@/types/ai'
 import { DEFAULTS, LIMITS } from '@/config/constants'
 import { MAX_FILE_SIZE } from '@/lib/appwrite/storage'
@@ -30,6 +30,7 @@ export function QuickAddForm() {
     courseId: '',
     deadline: new Date(),
     priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
+    category: AssignmentCategory.ASSIGNMENT,
     estimatedHours: undefined as number | undefined,
     notes: '',
     file: undefined as File | undefined,
@@ -98,6 +99,7 @@ export function QuickAddForm() {
         courseId: formData.courseId,
         deadline: formData.deadline,
         priority: formData.priority,
+        category: formData.category,
         estimatedHours: formData.estimatedHours,
         notes: formData.notes.trim() || undefined,
         aiParsed: true,
@@ -135,6 +137,7 @@ export function QuickAddForm() {
         courseId: formData.courseId,
         deadline: formData.deadline,
         priority: formData.priority,
+        category: formData.category,
         estimatedHours: formData.estimatedHours,
         notes: formData.notes.trim() || undefined,
         file: formData.file,
@@ -244,6 +247,23 @@ export function QuickAddForm() {
           value={formData.priority}
           onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
           options={priorityOptions}
+        />
+
+        {/* Category */}
+        <Select
+          label="Category"
+          value={formData.category}
+          onChange={(e) => setFormData({ ...formData, category: e.target.value as AssignmentCategory })}
+          options={[
+            { value: AssignmentCategory.ASSIGNMENT, label: 'Assignment' },
+            { value: AssignmentCategory.EXAM, label: 'Exam' },
+            { value: AssignmentCategory.QUIZ, label: 'Quiz' },
+            { value: AssignmentCategory.HOMEWORK, label: 'Homework' },
+            { value: AssignmentCategory.LAB, label: 'Lab' },
+            { value: AssignmentCategory.PROJECT, label: 'Project' },
+            { value: AssignmentCategory.DISCUSSION, label: 'Discussion' },
+            { value: AssignmentCategory.OTHER, label: 'Other' },
+          ]}
         />
 
         {/* Estimated Hours */}

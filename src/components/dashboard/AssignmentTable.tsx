@@ -9,7 +9,12 @@ import { Assignment } from '@/types/assignment'
 import { Input } from '@/components/ui/Input'
 import clsx from 'clsx'
 
-export function AssignmentTable() {
+interface AssignmentTableProps {
+  filterStatus?: 'incomplete' | 'all'
+  filterTime?: 'week' | 'all'
+}
+
+export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all' }: AssignmentTableProps) {
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
   
   const {
@@ -29,6 +34,27 @@ export function AssignmentTable() {
     loadAssignments()
     loadCourses()
   }, [loadAssignments, loadCourses])
+
+  // Apply props filters on top of store filters
+  const displayedAssignments = filteredAssignments.filter(assignment => {
+      // Status filter
+      if (filterStatus === 'incomplete' && assignment.status === 'completed') return false
+      
+      // Time filter
+      if (filterTime === 'week') {
+          const now = new Date()
+          const deadline = new Date(assignment.deadline)
+          // Check if deadline is largely in the future but within 7 days
+          // Or just standard "this week" logic (Sunday-Saturday)
+          // Let's use "Next 7 Days" as it's more useful for "Due This Week" context usually
+          const sevenDaysFromNow = new Date()
+          sevenDaysFromNow.setDate(now.getDate() + 7)
+          
+          if (deadline < now || deadline > sevenDaysFromNow) return false
+      }
+      
+      return true
+  })
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
@@ -73,7 +99,7 @@ export function AssignmentTable() {
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
-        {filteredAssignments.length === 0 ? (
+        {displayedAssignments.length === 0 ? (
           <div className="text-center py-12">
             <svg
               className="w-12 h-12 text-text-muted mx-auto mb-2"
@@ -95,7 +121,7 @@ export function AssignmentTable() {
             </p>
           </div>
         ) : (
-          filteredAssignments.map((assignment) => (
+          displayedAssignments.map((assignment) => (
             <AssignmentRow key={assignment.id} assignment={assignment} isMobile />
           ))
         )}
@@ -151,7 +177,7 @@ export function AssignmentTable() {
           </thead>
 
           <tbody>
-            {filteredAssignments.length === 0 ? (
+            {displayedAssignments.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
@@ -171,14 +197,14 @@ export function AssignmentTable() {
                     <p className="text-text-muted">
                       {searchQuery
                         ? 'No assignments match your search'
-                        : 'No assignments yet. Click the + button to add one!'}
+                        : 'No assignments found matching these filters.'}
                     </p>
                   </div>
                 </td>
               </tr>
             ) : (
-              filteredAssignments.map((assignment) => (
-                <AssignmentRow key={assignment.id} assignment={assignment} />
+              displayedAssignments.map((assignment) => (
+                <AssignmentRow key={assignment.id} assignment={assignment} onClick={() => setSelectedAssignment(assignment)} />
               ))
             )}
           </tbody>
@@ -186,10 +212,18 @@ export function AssignmentTable() {
       </div>
 
       {/* Summary */}
-      {filteredAssignments.length > 0 && (
+      {displayedAssignments.length > 0 && (
         <div className="mt-4 text-sm text-text-muted text-center">
-          Showing {filteredAssignments.length} assignment{filteredAssignments.length !== 1 ? 's' : ''}
+          Showing {displayedAssignments.length} assignment{displayedAssignments.length !== 1 ? 's' : ''}
         </div>
+      )}
+
+      {selectedAssignment && (
+        <AssignmentDetailModal 
+            assignment={selectedAssignment} 
+            isOpen={!!selectedAssignment} 
+            onClose={() => setSelectedAssignment(null)} 
+        />
       )}
     </div>
   )

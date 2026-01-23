@@ -322,6 +322,10 @@ Return a JSON object with:
 - gradeWeights: { category: string, weight: number }[] | null
   - weight should be a number representing percentage (e.g. 20 for 20%)
 - description: string | null (brief course description)
+- assignments: { title: string, date: string, type: string, weight: number }[] | null
+  - extract any exams, midterms, quizzes, or major assignments with specific dates
+  - date: ISO 8601 date string (estimate year if needed based on likely current semester)
+  - type: 'exam', 'quiz', 'assignment', 'project', or 'other' (infer best match)
 
 IMPORTANT: Return ONLY valid JSON, no markdown.`
 
@@ -374,6 +378,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown.`
       officeHours: parsed.officeHours,
       gradeWeights: parsed.gradeWeights,
       description: parsed.description,
+      assignments: parsed.assignments,
     }
   } catch (error) {
     if (error instanceof Error) {

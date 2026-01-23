@@ -78,8 +78,17 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
     high: '⚡',
     medium: '➖',
     low: '⬇️',
+  }  
+  const categoryIcons: Record<string, string> = {
+    'exam': '📝',
+    'quiz': '✍️',
+    'project': '🚀',
+    'lab': '🧪',
+    'discussion': '💬',
+    'homework': '📚',
+    'assignment': '📄',
+    'other': '📦'
   }
-
   // Mobile Card View
   if (isMobile) {
     return (
@@ -118,9 +127,14 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
               )}>
                 {assignment.title}
               </h3>
-              <span className="text-lg flex-shrink-0" title={`${assignment.priority} priority`}>
-                {priorityIcons[assignment.priority]}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-lg flex-shrink-0" title={`${assignment.priority} priority`}>
+                    {priorityIcons[assignment.priority]}
+                </span>
+                 <span className="text-xs text-text-muted bg-surface-hover px-1.5 py-0.5 rounded border border-border">
+                   {categoryIcons[assignment.category] || '📄'} {assignment.category}
+                </span>
+              </div>
             </div>
             
             {assignment.description && (
@@ -192,6 +206,9 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
             )}
           >
             {assignment.title}
+            <span className="text-xs text-text-muted mt-1 inline-block ml-2 bg-secondary px-1.5 py-0.5 rounded border border-border">
+                {categoryIcons[assignment.category] || '📄'} {assignment.category}
+            </span>
           </span>
         )}
         {assignment.description && (

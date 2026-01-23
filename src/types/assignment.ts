@@ -15,6 +15,17 @@ export enum Priority {
 // Status indicator colors based on deadline proximity
 export type StatusColor = 'red' | 'yellow' | 'green' | 'gray'
 
+export enum AssignmentCategory {
+  ASSIGNMENT = 'assignment',
+  EXAM = 'exam',
+  QUIZ = 'quiz',
+  HOMEWORK = 'homework',
+  LAB = 'lab',
+  DISCUSSION = 'discussion',
+  PROJECT = 'project',
+  OTHER = 'other'
+}
+
 // Main Assignment interface
 export interface Assignment {
   id: string                            // UUID
@@ -24,6 +35,7 @@ export interface Assignment {
   deadline: Date
   priority: Priority
   status: AssignmentStatus
+  category: AssignmentCategory
   estimatedHours?: number
   tags?: string[]
   notes?: string
@@ -61,6 +73,8 @@ export interface AssignmentFormData {
   courseId: string
   deadline: Date
   priority: Priority
+  status: AssignmentStatus
+  category: AssignmentCategory
   estimatedHours?: number
   tags?: string[]
   notes?: string

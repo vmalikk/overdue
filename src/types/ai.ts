@@ -109,4 +109,10 @@ export interface ParsedSyllabus {
     weight: number
   }>
   description?: string
+  assignments?: Array<{
+     title: string
+     date: string
+     type: 'exam' | 'quiz' | 'assignment' | 'project' | 'other'
+     weight?: number
+  }>
 }

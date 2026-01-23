@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import clsx from 'clsx'
 
-export type TabType = 'dashboard' | 'statistics' | 'fullcalendar' | 'courses' | 'settings'
+export type TabType = 'dashboard' | 'assignments' | 'statistics' | 'fullcalendar' | 'courses' | 'settings'
 
 interface NavigationProps {
   currentTab: TabType
@@ -13,6 +13,7 @@ interface NavigationProps {
 export function Navigation({ currentTab, onTabChange }: NavigationProps) {
   const tabs = [
     { id: 'dashboard' as TabType, label: 'Dashboard', icon: '📊' },
+    { id: 'assignments' as TabType, label: 'Assignments', icon: '📝' },
     { id: 'statistics' as TabType, label: 'Statistics', icon: '📈' },
     { id: 'fullcalendar' as TabType, label: 'Calendar', icon: '📅' },
     { id: 'courses' as TabType, label: 'Courses', icon: '📚' },
