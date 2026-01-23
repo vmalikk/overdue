@@ -16,9 +16,9 @@ function LoginContent() {
 
   // Check for error in URL params
   const urlError = searchParams.get('error')
-  
+
   // Detect Safari
-  const isSafari = typeof navigator !== 'undefined' && 
+  const isSafari = typeof navigator !== 'undefined' &&
     /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
   // Redirect to home if already logged in
@@ -107,6 +107,12 @@ function LoginContent() {
               placeholder="••••••••"
               required
             />
+          </div>
+
+          <div className="flex justify-end mb-4">
+            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+              Forgot password?
+            </Link>
           </div>
 
           <button

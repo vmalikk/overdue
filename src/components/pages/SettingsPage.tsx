@@ -241,7 +241,7 @@ export function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-text-muted mt-2">
-                Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get one from Google AI Studio</a> (it's free).
+                Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 font-medium underline transition-colors">Get one from Google AI Studio</a> (it's free).
               </p>
             </div>
 

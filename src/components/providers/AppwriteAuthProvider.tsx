@@ -13,21 +13,29 @@ interface AuthContextType {
   signInWithGoogle: () => void
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updatePassword: (password: string, secret: string, userId: string, passwordAgain: string) => Promise<void>
+  verifyEmail: (userId: string, secret: string) => Promise<void>
+  sendVerificationEmail: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  signOut: async () => {},
-  signInWithGoogle: () => {},
-  signInWithEmail: async () => {},
-  signUpWithEmail: async () => {},
+  signOut: async () => { },
+  signInWithGoogle: () => { },
+  signInWithEmail: async () => { },
+  signUpWithEmail: async () => { },
+  resetPassword: async () => { },
+  updatePassword: async () => { },
+  verifyEmail: async () => { },
+  sendVerificationEmail: async () => { },
 })
 
 export function AppwriteAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null)
   const [loading, setLoading] = useState(true)
-  
+
   const setAssignmentUserId = useAssignmentStore((state) => state.setUserId)
   const setCoursesUserId = useCourseStore((state) => state.setUserId)
   const loadAssignments = useAssignmentStore((state) => state.loadAssignments)
@@ -58,8 +66,8 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     // Use token-based OAuth to handle cross-site cookie issues
     account.createOAuth2Token(
       OAuthProvider.Google,
-      "https://overdue.malikv.com/auth/callback",
-      "https://overdue.malikv.com/login?error=auth"
+      `${window.location.origin}/auth/callback`,
+      `${window.location.origin}/login?error=auth`
     )
   }
 
@@ -85,6 +93,29 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     await Promise.all([loadAssignments(), loadCourses()])
   }
 
+  const resetPassword = async (email: string) => {
+    // Redirect back to /reset-password page with userId and secret
+    await account.createRecovery(
+      email,
+      `${window.location.origin}/reset-password`
+    )
+  }
+
+  const updatePassword = async (password: string, secret: string, userId: string, passwordAgain: string) => {
+    await account.updateRecovery(userId, secret, password)
+  }
+
+
+  const verifyEmail = async (userId: string, secret: string) => {
+    await account.updateVerification(userId, secret)
+    // Refresh user to update verification status
+    await checkUser()
+  }
+
+  const sendVerificationEmail = async () => {
+    await account.createVerification(`${window.location.origin}/verify-email`)
+  }
+
   const signOut = async () => {
     try {
       await account.deleteSession('current')
@@ -98,7 +129,7 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, signInWithGoogle, signInWithEmail, signUpWithEmail }}>
+    <AuthContext.Provider value={{ user, loading, signOut, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, updatePassword, verifyEmail, sendVerificationEmail }}>
       {children}
     </AuthContext.Provider>
   )

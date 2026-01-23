@@ -1,170 +1,149 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Header } from '@/components/dashboard/Header'
-import { Navigation, TabType } from '@/components/layout/Navigation'
-import { AssignmentTable } from '@/components/dashboard/AssignmentTable'
-import { MiniCalendar } from '@/components/dashboard/MiniCalendar'
-import { DailyCalendar } from '@/components/dashboard/DailyCalendar'
-import { StorageUsage } from '@/components/dashboard/StorageUsage'
-import { QuickAddForm } from '@/components/dashboard/QuickAddForm'
-import { QuickAddButton } from '@/components/dashboard/QuickAddButton'
-import { CourseManager } from '@/components/courses/CourseManager'
-import { SettingsPage } from '@/components/pages/SettingsPage'
-import { StatisticsPage } from '@/components/pages/StatisticsPage'
-import { FullCalendarPage } from '@/components/pages/FullCalendarPage'
-import { ToastContainer } from '@/components/ui/Toast'
-import { Modal } from '@/components/ui/Modal'
-import { Button } from '@/components/ui/Button'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
-import { useUIStore } from '@/store/uiStore'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-function DashboardContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
+export default function LandingPage() {
+    const { user, loading } = useAuth()
+    const router = useRouter()
 
-  // Initialize from URL or default to 'dashboard'
-  const initialTab = (searchParams?.get('tab') as TabType) || 'dashboard'
-  const [currentTab, setCurrentTab] = useState<TabType>(initialTab)
+    // Redirect to dashboard if logged in
+    useEffect(() => {
+        if (!loading && user) {
+            router.push('/dashboard')
+        }
+    }, [user, loading, router])
 
-  const { user, loading } = useAuth()
-  const { openQuickAdd } = useUIStore()
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        )
+    }
 
-  // Update URL when tab changes
-  const handleTabChange = (tab: TabType) => {
-    setCurrentTab(tab)
-    const params = new URLSearchParams(window.location.search)
-    params.set('tab', tab)
-    router.push(`?${params.toString()}`)
-  }
-
-  // Listen for open-settings event
-  useEffect(() => {
-    const handleOpenSettings = () => handleTabChange('settings')
-    window.addEventListener('open-settings', handleOpenSettings)
-    return () => window.removeEventListener('open-settings', handleOpenSettings)
-  }, [])
-
-  // Redirect to login if not authenticated
-  if (!loading && !user) {
-    router.push('/login')
-    return null
-  }
-
-  // Show loading state
-  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-text-muted">Loading...</div>
-      </div>
+        <div className="min-h-screen bg-background text-text-primary overflow-hidden">
+            {/* Navigation */}
+            <nav className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+                <div className="text-2xl font-bold tracking-tight">Overdue</div>
+                <div className="flex items-center gap-4">
+                    <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">
+                        Log in
+                    </Link>
+                    <Link
+                        href="/signup"
+                        className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-full hover:bg-primary/90 transition-colors"
+                    >
+                        Sign up
+                    </Link>
+                </div>
+            </nav>
+
+            {/* Hero Section */}
+            <main className="max-w-7xl mx-auto px-6 pt-20 pb-32">
+                <div className="text-center max-w-3xl mx-auto">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
+                            Never miss an assignment again.
+                        </h1>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                    >
+                        <p className="text-xl md:text-2xl text-text-muted mb-12 leading-relaxed">
+                            Track your coursework, sync with your calendar, and get AI-powered study tips.
+                            The intelligent assignment tracker tailored for students.
+                        </p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                        className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                    >
+                        <Link
+                            href="/signup"
+                            className="px-8 py-4 bg-primary text-white text-lg font-semibold rounded-full hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/25"
+                        >
+                            Get Started for Free
+                        </Link>
+                        <Link
+                            href="/login"
+                            className="px-8 py-4 bg-secondary text-text-primary text-lg font-semibold rounded-full hover:bg-secondary/80 transition-all"
+                        >
+                            Log In
+                        </Link>
+                    </motion.div>
+                </div>
+
+                {/* Features Grid */}
+                <div className="grid md:grid-cols-3 gap-8 mt-32">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.3 }}
+                        className="p-8 rounded-2xl bg-secondary/50 border border-border backdrop-blur-sm"
+                    >
+                        <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-500 mb-6 font-bold text-2xl">
+                            📅
+                        </div>
+                        <h3 className="text-xl font-bold mb-3">Smart Sync</h3>
+                        <p className="text-text-muted">
+                            Automatically syncs your assignments with Google Calendar so you never double-book yourself.
+                        </p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                        className="p-8 rounded-2xl bg-secondary/50 border border-border backdrop-blur-sm"
+                    >
+                        <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center text-purple-500 mb-6 font-bold text-2xl">
+                            🤖
+                        </div>
+                        <h3 className="text-xl font-bold mb-3">AI Powered</h3>
+                        <p className="text-text-muted">
+                            Paste your syllabus or type naturally. Our AI parses dates, details, and generates study plans instantly.
+                        </p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.5 }}
+                        className="p-8 rounded-2xl bg-secondary/50 border border-border backdrop-blur-sm"
+                    >
+                        <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-green-500 mb-6 font-bold text-2xl">
+                            🔒
+                        </div>
+                        <h3 className="text-xl font-bold mb-3">Private & Secure</h3>
+                        <p className="text-text-muted">
+                            Your data belongs to you. Bring your own API keys for AI features and keep full control.
+                        </p>
+                    </motion.div>
+                </div>
+            </main>
+
+            {/* Footer */}
+            <footer className="border-t border-border py-12 text-center text-text-muted text-sm">
+                <p>© {new Date().getFullYear()} Overdue. All rights reserved.</p>
+            </footer>
+        </div>
     )
-  }
-
-  return (
-    <>
-      <div className="min-h-screen bg-background">
-        <Header />
-        <Navigation currentTab={currentTab} onTabChange={handleTabChange} />
-
-        <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
-          {/* Dashboard Tab */}
-          {currentTab === 'dashboard' && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 md:gap-8">
-              {/* Main content - Assignment Table */}
-              <div className="w-full order-2 lg:order-1">
-                <AssignmentTable filterStatus="incomplete" filterTime="week" />
-              </div>
-
-              {/* Sidebar - Calendars */}
-              <aside className="w-full flex flex-col gap-4 md:gap-6 order-1 lg:order-2">
-                {/* Mini Calendar */}
-                <MiniCalendar />
-
-                {/* Daily Calendar - hide on mobile */}
-                <div className="hidden md:block">
-                  <DailyCalendar />
-                </div>
-
-                {/* Storage Usage */}
-                <StorageUsage />
-              </aside>
-            </div>
-          )}
-
-          {/* Assignments Tab */}
-          {currentTab === 'assignments' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-text-primary">All Assignments</h2>
-                <Button variant="primary" onClick={openQuickAdd}>
-                  Add Assignment
-                </Button>
-              </div>
-              <AssignmentTable filterStatus="incomplete" filterTime="all" />
-
-              <div className="pt-8 relative">
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-start">
-                  <span className="pr-3 bg-background text-lg font-medium text-text-muted">
-                    Completed
-                  </span>
-                </div>
-              </div>
-
-              <div className="opacity-75">
-                <AssignmentTable filterStatus="completed" filterTime="all" />
-              </div>
-            </div>
-          )}
-
-          {/* Statistics Tab */}
-          {currentTab === 'statistics' && <StatisticsPage />}
-
-          {/* Full Calendar Tab */}
-          {currentTab === 'calendar' && <FullCalendarPage />}
-
-          {/* Courses Tab */}
-          {currentTab === 'courses' && <CourseManager />}
-
-          {/* Settings Overlay - handled via Header event */}
-          {/* We'll handle settings visibility via local state if needed, or simply render it conditionally 
-              based on a new state variable if we want it to overlay everything. 
-              However, the simplest approach for now is to keep it renderable if switched to, 
-              but since we removed the tab, we need a way to show it. 
-              Let's add a state for valid 'settings' viewing. 
-          */}
-        </main>
-
-        {/* Floating Add Button (only on dashboard) */}
-        {currentTab === 'dashboard' && <QuickAddButton />}
-
-        {/* Modals */}
-        <QuickAddForm />
-
-        {/* Settings Modal/Overlay */}
-        <Modal
-          isOpen={currentTab === 'settings'}
-          onClose={() => handleTabChange('dashboard')}
-          title="Settings"
-          size="lg"
-        >
-          <SettingsPage />
-        </Modal>
-      </div>
-
-      {/* Toast notifications */}
-      <ToastContainer />
-    </>
-  )
-}
-
-export default function Dashboard() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center text-text-muted">Loading...</div>}>
-      <DashboardContent />
-    </Suspense>
-  )
 }
