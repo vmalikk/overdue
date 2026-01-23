@@ -14,29 +14,52 @@ interface DatePickerProps {
 
 export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
   ({ value, onChange, label, error, showTime = false, min, max }, ref) => {
-    const handleDateChange = (dateString: string) => {
-      // Manual parsing to avoid UTC conversion
+    // Initialize with formatted value
+    const [dateInputValue, setDateInputValue] = useState(value ? format(value, 'yyyy-MM-dd') : '')
+
+    // Only update local state if the prop value represents a DIFFERENT date than what we have locally.
+    // This prevents the "typing year -> 0002 -> re-render -> 0002 -> typing interrupted" loop.
+    useEffect(() => {
+      if (value) {
+        const valueString = format(value, 'yyyy-MM-dd')
+        // Only overwrite if it's actually different.
+        // This is crucial for "controlled" inputs that self-update.
+        if (valueString !== dateInputValue) {
+          setDateInputValue(valueString)
+        }
+      } else if (!value && dateInputValue) {
+        // If value becomes null but we have text, we might want to clear it or keep it?
+        // Usually clear it.
+        setDateInputValue('')
+      }
+    }, [value]) // dateInputValue dependency removed intentionally to avoid loop? No, it's needed for comparison but we can use functional updates or ref validness.
+    // Actually, easier: just check logic inside effect.
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const dateString = e.target.value
+      setDateInputValue(dateString) // Update local immediately so UI is responsive
+
+      // Manual parsing
       const [year, month, day] = dateString.split('-').map(Number)
 
-      // If incomplete date (e.g. typing), ignore
-      if (!year || !month || !day) return
+      // Only commit change if fully valid
+      if (year && month && day) {
+        // Validation for "reasonable" year length to avoid "0002" being treated as final if user is typing "2..."
+        // But date input returns "0002" immediately.
+        // The issue is likely that `onChange` causes global state update -> prop update -> useEffect -> reset.
+        // By checking `valueString !== dateInputValue` above, we avoid resetting if it matches.
 
-      const newDate = new Date(year, month - 1, day)
+        const newDate = new Date(year, month - 1, day)
 
-      if (!isNaN(newDate.getTime())) {
-        // Preserve time if it exists
-        if (value && showTime) {
-          newDate.setHours(value.getHours())
-          newDate.setMinutes(value.getMinutes())
-        } else if (!value && showTime) {
-          // Default to end of day if no previous value? 
-          // Or just keep it 00:00? The user usually wants *some* time.
-          // Current logic was preserving value time or defaulting.
-          // Let's default to current time or 23:59? 
-          // Implementation below defaults timeValue to 23:59 for display if null.
-          newDate.setHours(23, 59)
+        if (!isNaN(newDate.getTime())) {
+          if (value && showTime) {
+            newDate.setHours(value.getHours())
+            newDate.setMinutes(value.getMinutes())
+          } else if (!value && showTime) {
+            newDate.setHours(23, 59)
+          }
+          onChange(newDate)
         }
-        onChange(newDate)
       }
     }
 
@@ -48,7 +71,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
       onChange(newDate)
     }
 
-    const dateValue = value ? format(value, 'yyyy-MM-dd') : ''
+
     const timeValue = value ? format(value, 'HH:mm') : '23:59'
 
     return (
@@ -62,8 +85,8 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
           {/* Date input */}
           <input
             type="date"
-            value={dateValue}
-            onChange={(e) => handleDateChange(e.target.value)}
+            value={dateInputValue}
+            onChange={handleDateChange}
             min={min}
             max={max}
             className={clsx(
