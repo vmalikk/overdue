@@ -5,7 +5,7 @@ import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { AssignmentRow } from './AssignmentRow'
 import { AssignmentDetailModal } from './AssignmentDetailModal'
-import { Assignment } from '@/types/assignment'
+import { Assignment, AssignmentCategory } from '@/types/assignment'
 import { Input } from '@/components/ui/Input'
 import clsx from 'clsx'
 
@@ -35,9 +35,23 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     loadCourses()
   }, [loadAssignments, loadCourses])
   // Apply props filters on top of store filters
+  // DEBUG: Log incoming data to diagnose filtering issues
+  if (filteredAssignments.length > 0 && process.env.NODE_ENV === 'development') {
+    console.log('[AssignmentTable] Filter Debug:', {
+      totalFromStore: filteredAssignments.length,
+      filterStatus,
+      filterTime,
+      categories: filteredAssignments.map(a => a.category),
+      statuses: filteredAssignments.map(a => a.status),
+      sampleDeadline: filteredAssignments[0]?.deadline,
+      deadlineType: typeof filteredAssignments[0]?.deadline,
+    });
+  }
+
   const displayedAssignments = filteredAssignments.filter(assignment => {
     // 1. Hide Calendar Events (keeping pure assignments only)
-    if (assignment.category === 'event') return false;
+    // Use enum constant for type safety
+    if (assignment.category === AssignmentCategory.EVENT) return false;
 
     // 2. Status Filter
     if (filterStatus === 'incomplete') {
@@ -52,8 +66,14 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     if (filterTime === 'week') {
       const now = new Date();
       // Ensure deadline is a valid Date object
-      const deadline = new Date(assignment.deadline);
-      if (isNaN(deadline.getTime())) return true; // Keep invalid dates to be safe (or log error)
+      const deadline = assignment.deadline instanceof Date
+        ? assignment.deadline
+        : new Date(assignment.deadline);
+
+      if (isNaN(deadline.getTime())) {
+        console.warn('[AssignmentTable] Invalid deadline for:', assignment.title, assignment.deadline);
+        return true; // Keep invalid dates to be safe
+      }
 
       // "This Week" = Overdue items + Items due in next 7 days
       const sevenDaysFromNow = new Date();
@@ -66,7 +86,17 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     return true;
   })
 
-
+  // DEBUG: Log filter results
+  if (process.env.NODE_ENV === 'development' && filteredAssignments.length !== displayedAssignments.length) {
+    const eventCount = filteredAssignments.filter(a => a.category === AssignmentCategory.EVENT).length;
+    const completedCount = filteredAssignments.filter(a => a.status === 'completed').length;
+    console.log('[AssignmentTable] Filter Results:', {
+      before: filteredAssignments.length,
+      after: displayedAssignments.length,
+      hiddenAsEvents: eventCount,
+      hiddenAsCompleted: filterStatus === 'incomplete' ? completedCount : 0,
+    });
+  }
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
