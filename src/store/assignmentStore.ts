@@ -37,6 +37,7 @@ interface AssignmentStore {
 
   // Bulk operations
   deleteCompleted: () => Promise<void>
+  deleteAllAssignments: () => Promise<void>
   refreshAssignments: () => Promise<void>
 }
 
@@ -389,6 +390,22 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       await get().loadAssignments()
     } catch (error) {
       console.error('Failed to delete completed assignments:', error)
+      throw error
+    }
+  },
+
+  // Delete ALL assignments
+  deleteAllAssignments: async () => {
+    const { assignments, userId } = get()
+    if (!userId) return
+
+    try {
+      for (const assignment of assignments) {
+        await db.deleteAssignment(assignment.id)
+      }
+      set({ assignments: [], filteredAssignments: [] })
+    } catch (error) {
+      console.error('Failed to delete all assignments:', error)
       throw error
     }
   },

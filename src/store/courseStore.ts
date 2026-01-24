@@ -20,6 +20,7 @@ interface CourseStore {
   unarchiveCourse: (id: string) => Promise<void>
   getCourseById: (id: string) => Course | undefined
   getCourseByCode: (code: string) => Course | undefined
+  deleteAllCourses: () => Promise<void>
   refreshCourses: () => Promise<void>
 }
 
@@ -143,6 +144,22 @@ export const useCourseStore = create<CourseStore>((set, get) => ({
   // Get course by code
   getCourseByCode: (code: string) => {
     return get().courses.find((c) => c.code === code)
+  },
+
+  // Delete ALL courses
+  deleteAllCourses: async () => {
+    const { courses, userId } = get()
+    if (!userId) return
+
+    try {
+      for (const course of courses) {
+        await db.deleteCourse(course.id)
+      }
+      set({ courses: [], activeCourses: [] })
+    } catch (error) {
+      console.error('Failed to delete all courses:', error)
+      throw error
+    }
   },
 
   // Refresh courses from database

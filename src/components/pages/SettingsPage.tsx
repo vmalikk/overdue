@@ -3,11 +3,16 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/store/uiStore'
+import { useAssignmentStore } from '@/store/assignmentStore'
+import { useCourseStore } from '@/store/courseStore'
 import { CalendarSyncSection } from './CalendarSyncSection'
 
 export function SettingsPage() {
   const { showToast, apiKey, setApiKey } = useUIStore()
+  const { deleteAllAssignments, assignments } = useAssignmentStore()
+  const { deleteAllCourses, courses } = useCourseStore()
   const [isExporting, setIsExporting] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'ai'>('general')
   const [inputKey, setInputKey] = useState('')
   const [isKeyVisible, setIsKeyVisible] = useState(false)
@@ -34,14 +39,19 @@ export function SettingsPage() {
   const handleClearAll = async () => {
     if (
       confirm(
-        'Are you sure you want to delete ALL data? This cannot be undone!\n\nThis will delete all assignments, courses, and settings.'
+        `Are you sure you want to delete ALL data? This cannot be undone!\n\nThis will delete:\n- ${assignments.length} assignments\n- ${courses.length} courses`
       )
     ) {
+      setIsClearing(true)
       try {
-        // Clear from Appwrite would go here
-        showToast('Clear feature coming soon', 'info')
+        await deleteAllAssignments()
+        await deleteAllCourses()
+        showToast('All data has been deleted', 'success')
       } catch (error) {
+        console.error('Failed to clear data:', error)
         showToast('Failed to clear data', 'error')
+      } finally {
+        setIsClearing(false)
       }
     }
   }
@@ -141,11 +151,11 @@ export function SettingsPage() {
                 <div>
                   <h4 className="font-medium text-status-red mb-1">Clear All Data</h4>
                   <p className="text-sm text-text-muted">
-                    Permanently delete all assignments, courses, and settings
+                    Permanently delete all {assignments.length} assignments and {courses.length} courses
                   </p>
                 </div>
-                <Button onClick={handleClearAll} variant="danger">
-                  Clear All
+                <Button onClick={handleClearAll} variant="danger" disabled={isClearing}>
+                  {isClearing ? 'Deleting...' : 'Clear All'}
                 </Button>
               </div>
             </div>
