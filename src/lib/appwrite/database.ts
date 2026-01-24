@@ -17,16 +17,36 @@ const COURSES_COLLECTION = "courses";
 
 export async function getAllAssignments(userId: string): Promise<Assignment[]> {
   console.log('[database] getAllAssignments called for userId:', userId)
-  const response = await databases.listDocuments(
-    DATABASE_ID,
-    ASSIGNMENTS_COLLECTION,
-    [Query.equal('userId', userId), Query.orderDesc('deadline'), Query.limit(100)]
-  );
-  console.log('[database] Query returned:', response.total, 'total,', response.documents.length, 'fetched')
-  if (response.documents.length > 0) {
-    console.log('[database] Sample document:', JSON.stringify(response.documents[0], null, 2))
+
+  // Fetch all assignments using pagination (Appwrite max is 100 per request)
+  const allDocuments: any[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (true) {
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      ASSIGNMENTS_COLLECTION,
+      [
+        Query.equal('userId', userId),
+        Query.orderAsc('deadline'),  // Earliest deadlines first (more useful)
+        Query.limit(limit),
+        Query.offset(offset)
+      ]
+    );
+
+    allDocuments.push(...response.documents);
+    console.log('[database] Fetched batch:', response.documents.length, 'offset:', offset, 'total:', response.total)
+
+    // If we got fewer than limit, we've fetched everything
+    if (response.documents.length < limit) {
+      break;
+    }
+    offset += limit;
   }
-  return response.documents.map(mapDocumentToAssignment);
+
+  console.log('[database] Total fetched:', allDocuments.length)
+  return allDocuments.map(mapDocumentToAssignment);
 }
 
 export async function getAssignment(id: string): Promise<Assignment | undefined> {
