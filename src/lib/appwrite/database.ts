@@ -16,19 +16,12 @@ const COURSES_COLLECTION = "courses";
 // === ASSIGNMENT CRUD OPERATIONS ===
 
 export async function getAllAssignments(userId: string): Promise<Assignment[]> {
-  console.log('Fetching assignments for userId:', userId);
-  try {
-    const response = await databases.listDocuments(
-      DATABASE_ID,
-      ASSIGNMENTS_COLLECTION,
-      [Query.equal('userId', userId), Query.orderDesc('deadline')]
-    );
-    console.log('Fetched assignments:', response.documents.length);
-    return response.documents.map(mapDocumentToAssignment);
-  } catch (error) {
-    console.error('Error fetching assignments:', error);
-    return [];
-  }
+  const response = await databases.listDocuments(
+    DATABASE_ID,
+    ASSIGNMENTS_COLLECTION,
+    [Query.equal('userId', userId), Query.orderDesc('deadline')]
+  );
+  return response.documents.map(mapDocumentToAssignment);
 }
 
 export async function getAssignment(id: string): Promise<Assignment | undefined> {
