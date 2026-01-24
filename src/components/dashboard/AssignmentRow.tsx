@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Assignment } from '@/types/assignment'
+import { Assignment, AssignmentStatus } from '@/types/assignment'
 import { StatusIndicator } from './StatusIndicator'
 import { CourseBadge } from '@/components/courses/CourseBadge'
 import { Button } from '@/components/ui/Button'
@@ -72,6 +72,32 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
         showToast('Failed to delete assignment', 'error')
       }
     }
+  }
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation()
+    const newStatus = e.target.value as AssignmentStatus
+    try {
+      await updateAssignment(assignment.id, {
+        status: newStatus,
+        completedAt: newStatus === AssignmentStatus.COMPLETED ? new Date() : undefined
+      })
+      showToast(`Status changed to ${statusLabels[newStatus]}`, 'success')
+    } catch (error) {
+      showToast('Failed to update status', 'error')
+    }
+  }
+
+  const statusLabels: Record<AssignmentStatus, string> = {
+    [AssignmentStatus.NOT_STARTED]: 'Not Started',
+    [AssignmentStatus.IN_PROGRESS]: 'In Progress',
+    [AssignmentStatus.COMPLETED]: 'Completed',
+  }
+
+  const statusColors: Record<AssignmentStatus, string> = {
+    [AssignmentStatus.NOT_STARTED]: 'bg-gray-500',
+    [AssignmentStatus.IN_PROGRESS]: 'bg-yellow-500',
+    [AssignmentStatus.COMPLETED]: 'bg-green-500',
   }
 
   const priorityIcons = {
@@ -148,6 +174,17 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
               <span className="text-xs text-text-muted">
                 {formatDeadline(assignment.deadline)}
               </span>
+              {/* Status dropdown for mobile */}
+              <select
+                value={assignment.status}
+                onChange={handleStatusChange}
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs px-2 py-1 rounded border border-border bg-secondary text-text-primary"
+              >
+                <option value={AssignmentStatus.NOT_STARTED}>Not Started</option>
+                <option value={AssignmentStatus.IN_PROGRESS}>In Progress</option>
+                <option value={AssignmentStatus.COMPLETED}>Completed</option>
+              </select>
             </div>
           </div>
 
@@ -242,27 +279,21 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
       {/* Actions - 10% width */}
       <td className="px-4 py-3" style={{ width: '10%' }}>
         <div className="flex items-center gap-2">
-          {/* Complete button */}
-          <button
-            onClick={handleComplete}
+          {/* Status dropdown */}
+          <select
+            value={assignment.status}
+            onChange={handleStatusChange}
+            onClick={(e) => e.stopPropagation()}
             className={clsx(
-              'p-1 rounded hover:bg-secondary transition-colors',
-              isCompleted ? 'text-status-green' : 'text-text-muted hover:text-status-green'
+              'text-xs px-2 py-1 rounded border border-border bg-secondary text-text-primary cursor-pointer',
+              'focus:outline-none focus:ring-2 focus:ring-priority-medium'
             )}
-            title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+            title="Change status"
           >
-            <svg
-              className="w-5 h-5"
-              fill={isCompleted ? 'currentColor' : 'none'}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path d="M5 13l4 4L19 7" />
-            </svg>
-          </button>
+            <option value={AssignmentStatus.NOT_STARTED}>Not Started</option>
+            <option value={AssignmentStatus.IN_PROGRESS}>In Progress</option>
+            <option value={AssignmentStatus.COMPLETED}>Completed</option>
+          </select>
 
           {/* Delete button */}
           <button
