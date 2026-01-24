@@ -34,14 +34,6 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     loadAssignments()
     loadCourses()
   }, [loadAssignments, loadCourses])
-
-  console.log('AssignmentTable Render:', {
-    filterStatus,
-    filterTime,
-    storeFilteredCount: filteredAssignments.length,
-    allAssignmentsCount: useAssignmentStore.getState().assignments.length
-  });
-
   // Apply props filters on top of store filters
   const displayedAssignments = filteredAssignments.filter(assignment => {
     // Status filter
@@ -52,19 +44,21 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     if (filterTime === 'week') {
       const now = new Date()
       const deadline = new Date(assignment.deadline)
-      // Check if deadline is largely in the future but within 7 days
-      // Or just standard "this week" logic (Sunday-Saturday)
-      // Let's use "Next 7 Days" as it's more useful for "Due This Week" context usually
+
+      // Calculate 7 days from now
       const sevenDaysFromNow = new Date()
       sevenDaysFromNow.setDate(now.getDate() + 7)
 
-      if (deadline < now || deadline > sevenDaysFromNow) return false
+      // FIX: Only hide items that are too far in the future.
+      // Do NOT hide items in the past (deadline < now) because if they are 'incomplete',
+      // they are OVERDUE and should absolutely be shown!
+      if (deadline > sevenDaysFromNow) return false
     }
 
     return true
   })
 
-  console.log('Displayed Assignments:', displayedAssignments.length);
+
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
