@@ -35,6 +35,13 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     loadCourses()
   }, [loadAssignments, loadCourses])
 
+  console.log('AssignmentTable Render:', {
+    filterStatus,
+    filterTime,
+    storeFilteredCount: filteredAssignments.length,
+    allAssignmentsCount: useAssignmentStore.getState().assignments.length
+  });
+
   // Apply props filters on top of store filters
   const displayedAssignments = filteredAssignments.filter(assignment => {
     // Status filter
@@ -54,8 +61,10 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
       if (deadline < now || deadline > sevenDaysFromNow) return false
     }
 
-
+    return true
   })
+
+  console.log('Displayed Assignments:', displayedAssignments.length);
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
