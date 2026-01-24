@@ -36,8 +36,22 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
   }, [loadAssignments, loadCourses])
   // Apply props filters on top of store filters
   const displayedAssignments = filteredAssignments.filter(assignment => {
+    // Debug logging for the first few items
+    if (Math.random() < 0.1) {
+      console.log('Filtering Item:', {
+        title: assignment.title,
+        status: assignment.status,
+        filterStatus,
+        deadline: assignment.deadline,
+        filterTime
+      })
+    }
+
     // Status filter
-    if (filterStatus === 'incomplete' && assignment.status === 'completed') return false
+    if (filterStatus === 'incomplete') {
+      // Allow NOT_STARTED and IN_PROGRESS
+      if (assignment.status === 'completed') return false
+    }
     if (filterStatus === 'completed' && assignment.status !== 'completed') return false
 
     // Time filter
