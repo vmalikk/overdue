@@ -36,40 +36,34 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
   }, [loadAssignments, loadCourses])
   // Apply props filters on top of store filters
   const displayedAssignments = filteredAssignments.filter(assignment => {
-    // Debug logging for the first few items
-    if (Math.random() < 0.1) {
-      console.log('Filtering Item:', {
-        title: assignment.title,
-        status: assignment.status,
-        filterStatus,
-        deadline: assignment.deadline,
-        filterTime
-      })
-    }
+    // 1. Hide Calendar Events (keeping pure assignments only)
+    if (assignment.category === 'event') return false;
 
-    // Status filter
+    // 2. Status Filter
     if (filterStatus === 'incomplete') {
-      // Allow NOT_STARTED and IN_PROGRESS
-      if (assignment.status === 'completed') return false
+      // Show everything EXCEPT 'completed'. (Includes 'not_started', 'in_progress')
+      if (assignment.status === 'completed') return false;
+    } else if (filterStatus === 'completed') {
+      // Show ONLY 'completed'
+      if (assignment.status !== 'completed') return false;
     }
-    if (filterStatus === 'completed' && assignment.status !== 'completed') return false
 
-    // Time filter
+    // 3. Time Filter (Only for Dashboard / 'week' view)
     if (filterTime === 'week') {
-      const now = new Date()
-      const deadline = new Date(assignment.deadline)
+      const now = new Date();
+      // Ensure deadline is a valid Date object
+      const deadline = new Date(assignment.deadline);
+      if (isNaN(deadline.getTime())) return true; // Keep invalid dates to be safe (or log error)
 
-      // Calculate 7 days from now
-      const sevenDaysFromNow = new Date()
-      sevenDaysFromNow.setDate(now.getDate() + 7)
+      // "This Week" = Overdue items + Items due in next 7 days
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(now.getDate() + 7);
 
-      // FIX: Only hide items that are too far in the future.
-      // Do NOT hide items in the past (deadline < now) because if they are 'incomplete',
-      // they are OVERDUE and should absolutely be shown!
-      if (deadline > sevenDaysFromNow) return false
+      // Hide if deadline is too far in future
+      if (deadline > sevenDaysFromNow) return false;
     }
 
-    return true
+    return true;
   })
 
 
