@@ -16,11 +16,16 @@ const COURSES_COLLECTION = "courses";
 // === ASSIGNMENT CRUD OPERATIONS ===
 
 export async function getAllAssignments(userId: string): Promise<Assignment[]> {
+  console.log('[database] getAllAssignments called for userId:', userId)
   const response = await databases.listDocuments(
     DATABASE_ID,
     ASSIGNMENTS_COLLECTION,
-    [Query.equal('userId', userId), Query.orderDesc('deadline')]
+    [Query.equal('userId', userId), Query.orderDesc('deadline'), Query.limit(100)]
   );
+  console.log('[database] Query returned:', response.total, 'total,', response.documents.length, 'fetched')
+  if (response.documents.length > 0) {
+    console.log('[database] Sample document:', JSON.stringify(response.documents[0], null, 2))
+  }
   return response.documents.map(mapDocumentToAssignment);
 }
 
@@ -34,34 +39,38 @@ export async function getAssignment(id: string): Promise<Assignment | undefined>
 }
 
 export async function addAssignment(assignment: Omit<Assignment, 'id' | 'createdAt' | 'updatedAt'>, userId: string): Promise<Assignment> {
+  const documentData = {
+    title: assignment.title,
+    description: assignment.description || null,
+    courseId: assignment.courseId,
+    deadline: assignment.deadline instanceof Date ? assignment.deadline.toISOString() : assignment.deadline,
+    priority: assignment.priority,
+    status: assignment.status,
+    category: assignment.category || AssignmentCategory.ASSIGNMENT,
+    estimatedHours: assignment.estimatedHours || null,
+    tags: assignment.tags || [],
+    notes: assignment.notes || null,
+    attachmentFileId: assignment.attachmentFileId || null,
+    attachmentFileName: assignment.attachmentFileName || null,
+    userId: userId,
+    completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
+    googleCalendarEventId: assignment.googleCalendarEventId || null,
+    calendarSynced: assignment.calendarSynced || false
+  };
+  console.log('[database] addAssignment - saving document:', JSON.stringify(documentData, null, 2))
+
   const doc = await databases.createDocument(
     DATABASE_ID,
     ASSIGNMENTS_COLLECTION,
     ID.unique(),
-    {
-      title: assignment.title,
-      description: assignment.description || null,
-      courseId: assignment.courseId,
-      deadline: assignment.deadline instanceof Date ? assignment.deadline.toISOString() : assignment.deadline,
-      priority: assignment.priority,
-      status: assignment.status,
-      category: assignment.category || AssignmentCategory.ASSIGNMENT,
-      estimatedHours: assignment.estimatedHours || null,
-      tags: assignment.tags || [],
-      notes: assignment.notes || null,
-      attachmentFileId: assignment.attachmentFileId || null,
-      attachmentFileName: assignment.attachmentFileName || null,
-      userId: userId,
-      completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
-      googleCalendarEventId: assignment.googleCalendarEventId || null,
-      calendarSynced: assignment.calendarSynced || false
-    },
+    documentData,
     [
       Permission.read(Role.user(userId)),
       Permission.update(Role.user(userId)),
       Permission.delete(Role.user(userId)),
     ]
   );
+  console.log('[database] addAssignment - created with id:', doc.$id)
   return mapDocumentToAssignment(doc);
 }
 

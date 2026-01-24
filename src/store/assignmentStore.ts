@@ -61,11 +61,16 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   // Load all assignments from Appwrite
   loadAssignments: async () => {
     const { userId } = get()
-    if (!userId) return
+    console.log('[assignmentStore] loadAssignments called, userId:', userId)
+    if (!userId) {
+      console.warn('[assignmentStore] No userId, skipping load')
+      return
+    }
 
     set({ isLoading: true })
     try {
       const assignments = await db.getAllAssignments(userId)
+      console.log('[assignmentStore] Loaded assignments:', assignments.length, assignments.map(a => ({ id: a.id, title: a.title, category: a.category })))
       set({ assignments })
       get().applyFilters()
 
@@ -103,6 +108,7 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   // Add new assignment
   addAssignment: async (data: AssignmentFormData) => {
     const { userId } = get()
+    console.log('[assignmentStore] addAssignment called, userId:', userId, 'data:', data)
     if (!userId) throw new Error('User not authenticated')
 
     let attachmentData = {}
