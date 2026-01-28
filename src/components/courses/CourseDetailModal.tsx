@@ -23,13 +23,21 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
     const [targetGrade, setTargetGrade] = useState<string>('90')
     const { updateCourse } = useCourseStore()
 
-    // Reset state when course opens
+    // Reset state when course opens - FIX: Only reset when opening a DIFFERENT course
     useEffect(() => {
-        if (course) {
+        if (course && isOpen) {
             setScores(course.categoryScores || {})
+            // Only set default tab if we are mounting or switching courses
+            // We rely on the parent to unmount/remount or this effect to run on id change
+        }
+    }, [course?.id, isOpen])
+
+    // Separate effect for tab reset on open
+    useEffect(() => {
+        if (isOpen) {
             setActiveTab('info')
         }
-    }, [course, isOpen])
+    }, [isOpen])
 
     if (!course) return null
 
