@@ -1,4 +1,4 @@
-import { Assignment, AssignmentStatus, Priority } from '@/types/assignment'
+import { Assignment, AssignmentStatus, Priority, AssignmentCategory } from '@/types/assignment'
 import { Course } from '@/types/course'
 import { startOfDay, endOfDay, subDays, addDays, format, isAfter, isBefore, isSameDay } from 'date-fns'
 
@@ -12,8 +12,9 @@ export interface CompletionMetrics {
 }
 
 export function calculateCompletionRate(assignments: Assignment[]): CompletionMetrics {
-  const total = assignments.length
-  const completed = assignments.filter(a => a.status === AssignmentStatus.COMPLETED).length
+  const validAssignments = assignments.filter(a => a.category !== AssignmentCategory.EVENT)
+  const total = validAssignments.length
+  const completed = validAssignments.filter(a => a.status === AssignmentStatus.COMPLETED).length
 
   // Calculate on-time vs late completions
   let onTime = 0
@@ -48,10 +49,11 @@ export interface StatusDistribution {
 }
 
 export function getStatusDistribution(assignments: Assignment[]): StatusDistribution {
+  const validAssignments = assignments.filter(a => a.category !== AssignmentCategory.EVENT)
   return {
-    notStarted: assignments.filter(a => a.status === AssignmentStatus.NOT_STARTED).length,
-    inProgress: assignments.filter(a => a.status === AssignmentStatus.IN_PROGRESS).length,
-    completed: assignments.filter(a => a.status === AssignmentStatus.COMPLETED).length,
+    notStarted: validAssignments.filter(a => a.status === AssignmentStatus.NOT_STARTED).length,
+    inProgress: validAssignments.filter(a => a.status === AssignmentStatus.IN_PROGRESS).length,
+    completed: validAssignments.filter(a => a.status === AssignmentStatus.COMPLETED).length,
   }
 }
 
@@ -63,10 +65,11 @@ export interface PriorityDistribution {
 }
 
 export function getPriorityDistribution(assignments: Assignment[]): PriorityDistribution {
+  const validAssignments = assignments.filter(a => a.category !== AssignmentCategory.EVENT)
   return {
-    low: assignments.filter(a => a.priority === Priority.LOW).length,
-    medium: assignments.filter(a => a.priority === Priority.MEDIUM).length,
-    high: assignments.filter(a => a.priority === Priority.HIGH).length,
+    low: validAssignments.filter(a => a.priority === Priority.LOW).length,
+    medium: validAssignments.filter(a => a.priority === Priority.MEDIUM).length,
+    high: validAssignments.filter(a => a.priority === Priority.HIGH).length,
   }
 }
 
@@ -85,7 +88,7 @@ export function getCourseWorkload(assignments: Assignment[], courses: Course[]):
   const courseMap = new Map(courses.map(c => [c.id, c]))
   const workloadMap = new Map<string, CourseWorkloadItem>()
 
-  assignments.forEach(a => {
+  assignments.filter(a => a.category !== AssignmentCategory.EVENT).forEach(a => {
     const course = courseMap.get(a.courseId)
     if (!course) return
 
@@ -122,9 +125,10 @@ export interface TrendDataPoint {
 }
 
 export function getDeadlineTrends(
-  assignments: Assignment[],
+  allAssignments: Assignment[],
   period: 'week' | 'month'
 ): TrendDataPoint[] {
+  const assignments = allAssignments.filter(a => a.category !== AssignmentCategory.EVENT)
   const now = new Date()
   const daysToShow = period === 'week' ? 7 : 30
   const trends: TrendDataPoint[] = []
@@ -165,6 +169,7 @@ export interface StreakData {
 
 export function calculateStreak(assignments: Assignment[]): StreakData {
   const completedAssignments = assignments
+    .filter(a => a.category !== AssignmentCategory.EVENT)
     .filter(a => a.status === AssignmentStatus.COMPLETED && a.completedAt)
     .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
 
@@ -231,7 +236,8 @@ export interface ProductivityInsight {
   value?: string
 }
 
-export function getProductivityInsights(assignments: Assignment[]): ProductivityInsight[] {
+export function getProductivityInsights(allAssignments: Assignment[]): ProductivityInsight[] {
+  const assignments = allAssignments.filter(a => a.category !== AssignmentCategory.EVENT)
   const insights: ProductivityInsight[] = []
   const now = new Date()
 
@@ -316,17 +322,20 @@ export function getQuickStats(assignments: Assignment[]): QuickStats {
   const now = new Date()
   const soon = addDays(now, 2)
 
+  // Exclude events
+  const validAssignments = assignments.filter(a => a.category !== AssignmentCategory.EVENT)
+
   return {
-    total: assignments.length,
-    completed: assignments.filter(a => a.status === AssignmentStatus.COMPLETED).length,
-    overdue: assignments.filter(a => {
+    total: validAssignments.length,
+    completed: validAssignments.filter(a => a.status === AssignmentStatus.COMPLETED).length,
+    overdue: validAssignments.filter(a => {
       const deadline = new Date(a.deadline)
       return a.status !== AssignmentStatus.COMPLETED && deadline < now
     }).length,
-    dueSoon: assignments.filter(a => {
+    dueSoon: validAssignments.filter(a => {
       const deadline = new Date(a.deadline)
       return a.status !== AssignmentStatus.COMPLETED && deadline >= now && deadline <= soon
     }).length,
-    inProgress: assignments.filter(a => a.status === AssignmentStatus.IN_PROGRESS).length,
+    inProgress: validAssignments.filter(a => a.status === AssignmentStatus.IN_PROGRESS).length,
   }
 }
