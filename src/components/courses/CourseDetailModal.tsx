@@ -193,9 +193,9 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                                         <p className="text-xs text-text-muted mt-1">Based on {totalWeightReferenced}% of graded coursework</p>
                                     </div>
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${current >= 90 ? 'bg-green-100 text-green-700' :
-                                            current >= 80 ? 'bg-blue-100 text-blue-700' :
-                                                current >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                                    'bg-red-100 text-red-700'
+                                        current >= 80 ? 'bg-blue-100 text-blue-700' :
+                                            current >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-red-100 text-red-700'
                                         }`}>
                                         {current >= 90 ? 'A' : current >= 80 ? 'B' : current >= 70 ? 'C' : 'F'}
                                     </div>
@@ -216,7 +216,6 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                                                         type="number"
                                                         placeholder="-%"
                                                         min="0" max="100"
-                                                        isGlass
                                                         className="text-right font-mono"
                                                         value={scores[gw.category] ?? ''}
                                                         onChange={(e) => handleScoreChange(gw.category, e.target.value)}
