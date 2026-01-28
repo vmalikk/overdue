@@ -23,6 +23,7 @@ export interface Course {
   description?: string
   active: boolean               // Archive old courses
   createdAt: Date
+  categoryScores?: Record<string, number> // Map of category name to percentage score (0-100)
 }
 
 // Form data for creating/updating courses
