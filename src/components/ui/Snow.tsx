@@ -22,7 +22,7 @@ export function Snow({ enabled = true }: { enabled?: boolean }) {
 
     // Generate snowflakes
     const flakes: Snowflake[] = []
-    const count = 50
+    const count = 150
 
     for (let i = 0; i < count; i++) {
       flakes.push({
