@@ -72,10 +72,16 @@ export async function POST(request: NextRequest) {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
 
+    const logs: string[] = [];
+    const log = (msg: string) => {
+        console.log(msg);
+        logs.push(msg);
+    };
+
     // 1. Fetch Account (Dashboard) to Scrape Courses
     // The API /api/v1/courses does not seem to reliably work for students
-    console.log('Gradescope Sync: Fetching account page...');
-    // console.log('Gradescope Sync: Using Cookies:', cookieHeader); 
+    log('Gradescope Sync: Fetching account page...');
+    // log('Gradescope Sync: Using Cookies:', cookieHeader); 
     
     const accountRes = await fetch(`${GRADESCOPE_BASE_URL}/account`, { 
         headers: headers,
@@ -84,16 +90,16 @@ export async function POST(request: NextRequest) {
 
     if (!accountRes.ok) {
         if (accountRes.status === 401 || accountRes.status === 403) {
-             return NextResponse.json({ success: false, error: 'Gradescope session expired. Please reconnect.' }, { status: 401 })
+             return NextResponse.json({ success: false, error: 'Gradescope session expired. Please reconnect.', debug: logs }, { status: 401 })
         }
-        console.error(`Gradescope Sync: Failed to fetch account page. Status: ${accountRes.status}`);
-        return NextResponse.json({ success: false, error: 'Failed to access Gradescope dashboard' }, { status: 500 })
+        log(`Gradescope Sync: Failed to fetch account page. Status: ${accountRes.status}`);
+        return NextResponse.json({ success: false, error: 'Failed to access Gradescope dashboard', debug: logs }, { status: 500 })
     }
     
     // Check if we were redirected to login
     if (accountRes.url.includes('/login')) {
-         console.warn('Gradescope Sync: Redirected to login page. Session likely invalid.');
-         return NextResponse.json({ success: false, error: 'Session invalid. Please reconnect.' }, { status: 401 });
+         log('Gradescope Sync: Redirected to login page. Session likely invalid.');
+         return NextResponse.json({ success: false, error: 'Session invalid. Please reconnect.', debug: logs }, { status: 401 });
     }
 
     const accountHtml = await accountRes.text();
@@ -101,11 +107,11 @@ export async function POST(request: NextRequest) {
     
     // Debug: Log the page title or login check
     const pageTitle = $('title').text();
-    console.log('Gradescope Sync: Page Title:', pageTitle);
+    log(`Gradescope Sync: Page Title: ${pageTitle}`);
 
     // If title suggests login
     if (pageTitle.includes("Log In")) {
-         return NextResponse.json({ success: false, error: 'Session invalid (Login Page detected). Please reconnect.' }, { status: 401 });
+         return NextResponse.json({ success: false, error: 'Session invalid (Login Page detected). Please reconnect.', debug: logs }, { status: 401 });
     }
     
     interface GSCourse {
@@ -126,12 +132,12 @@ export async function POST(request: NextRequest) {
         
         if (href && href.startsWith('/courses/')) {
             const id = href.split('/')[2];
-            console.log(`Gradescope Sync: Found course ${shortName} (ID: ${id})`);
+            log(`Gradescope Sync: Found course ${shortName} (ID: ${id})`);
             courses.push({ id, name, shortName });
         }
     });
 
-    console.log(`Gradescope Sync: Found ${courses.length} courses`);
+    log(`Gradescope Sync: Found ${courses.length} courses`);
     
     // 2. Fetch Assignments for all courses
     let allGsAssignments: any[] = [];
@@ -139,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Limit concurrency to avoid getting blocked
     // For now, sequential is safer
     for (const course of courses) {
-        console.log(`Gradescope Sync: Fetching course ${course.id} (${course.shortName})`);
+        log(`Gradescope Sync: Fetching course ${course.id} (${course.shortName})`);
         const courseRes = await fetch(`${GRADESCOPE_BASE_URL}/courses/${course.id}`, { headers });
         
         if (courseRes.ok) {
@@ -148,7 +154,7 @@ export async function POST(request: NextRequest) {
             
             // Parse Student Table
             const table = $c('#assignments-student-table');
-            console.log(`Gradescope Sync: Course ${course.id} - Table found: ${table.length > 0}`);
+            log(`Gradescope Sync: Course ${course.id} - Table found: ${table.length > 0}`);
             
             if (table.length > 0) {
                  table.find('tbody tr').each((i, tr) => {
@@ -174,7 +180,7 @@ export async function POST(request: NextRequest) {
                          dueDateStr = $c(cells[4]).text().trim(); // "OCT 25 AT 11:59PM"
                      }
                      
-                     console.log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}"`);
+                     log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}"`);
 
                      const dueDate = parseGradescopeDate(dueDateStr);
                      
@@ -189,20 +195,20 @@ export async function POST(request: NextRequest) {
                              status: status
                          });
                      } else {
-                         console.log('Gradescope Sync: Skipped due to invalid date parsing');
+                         log('Gradescope Sync: Skipped due to invalid date parsing');
                      }
                  });
             } else {
                 // Should we check for instructor view? Or maybe "No assignments" text?
                 const noAssignments = $c('body').text().includes('No assignments');
-                console.log(`Gradescope Sync: No assignment table. "No assignments" text present? ${noAssignments}`);
+                log(`Gradescope Sync: No assignment table. "No assignments" text present? ${noAssignments}`);
             }
         } else {
-             console.error(`Failed to fetch course ${course.id}: ${courseRes.status}`);
+             log(`Failed to fetch course ${course.id}: ${courseRes.status}`);
         }
     }
 
-    console.log(`Gradescope Sync: Found ${allGsAssignments.length} assignments total`);
+    log(`Gradescope Sync: Found ${allGsAssignments.length} assignments total`);
 
     // 3. Sync with Appwrite
     const { databases } = await createSessionClient(request);
@@ -298,11 +304,13 @@ export async function POST(request: NextRequest) {
         success: true, 
         count: allGsAssignments.length,
         created: createdCount,
-        updated: updatedCount
+        updated: updatedCount,
+        debug: logs
     });
 
   } catch (err: any) {
     console.error('Sync Error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
+}
 }
