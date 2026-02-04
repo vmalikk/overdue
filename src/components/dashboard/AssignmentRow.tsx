@@ -26,6 +26,11 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
 
   const course = getCourseById(assignment.courseId)
   const isCompleted = assignment.status === 'completed'
+  
+  const isGradescope = assignment.source === 'gradescope' && assignment.gradescopeId && assignment.gradescopeCourseId
+  const gradescopeUrl = isGradescope 
+    ? `https://www.gradescope.com/courses/${assignment.gradescopeCourseId}/assignments/${assignment.gradescopeId}` 
+    : null
 
   const handleTitleEdit = async () => {
     if (editedTitle.trim() && editedTitle !== assignment.title) {
@@ -136,12 +141,27 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h3 className={clsx(
-                'font-medium text-text-primary',
-                isCompleted && 'line-through'
-              )}>
-                {assignment.title}
-              </h3>
+              {gradescopeUrl ? (
+                <a
+                  href={gradescopeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className={clsx(
+                    'font-medium text-text-primary hover:text-blue-500 hover:underline',
+                    isCompleted && 'line-through'
+                  )}
+                >
+                  {assignment.title} <span className="text-xs opacity-50">↗</span>
+                </a>
+              ) : (
+                <h3 className={clsx(
+                  'font-medium text-text-primary',
+                  isCompleted && 'line-through'
+                )}>
+                  {assignment.title}
+                </h3>
+              )}
               <span className="text-xs text-text-muted bg-surface-hover px-1.5 py-0.5 rounded border border-border flex-shrink-0">
                 {categoryIcons[assignment.category] || '📄'} {assignment.category}
               </span>
@@ -213,6 +233,24 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
             className="w-full px-2 py-1 bg-secondary border border-border rounded text-text-primary focus:outline-none focus:ring-2 focus:ring-priority-medium"
             autoFocus
           />
+        ) : gradescopeUrl ? (
+          <a
+            href={gradescopeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={clsx(
+              'text-left text-text-primary font-medium block hover:text-blue-500 group',
+              isCompleted && 'line-through'
+            )}
+            title="Open in Gradescope"
+          >
+            <span className="group-hover:underline">{assignment.title}</span>
+            <span className="text-xs text-text-muted mt-1 inline-block ml-2 bg-secondary px-1.5 py-0.5 rounded border border-border">
+              {categoryIcons[assignment.category] || '📄'} {assignment.category}
+            </span>
+            <span className="ml-1 text-xs opacity-50 group-hover:opacity-100">↗</span>
+          </a>
         ) : (
           <span
             className={clsx(

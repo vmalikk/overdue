@@ -232,6 +232,18 @@ export async function POST(request: NextRequest) {
 
                      log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}" (Cols: ${cells.length})`);
 
+                     // Filter: Ignore submitted or graded assignments
+                     // Checks for "Submitted" text or "Score / Max" pattern (e.g. "10.0 / 10.0")
+                     const isSubmittedOrGraded = 
+                        status.toLowerCase().includes('submitted') || 
+                        status.toLowerCase().includes('graded') ||
+                        /\d+\.?\d*\s*\/\s*\d+\.?\d*/.test(status);
+
+                     if (isSubmittedOrGraded) {
+                         log(`Gradescope Sync: Skipped "${cleanTitle}" because it is submitted/graded (Status: "${status}")`);
+                         return; // Continue to next iteration
+                     }
+
                      const dueDate = parseGradescopeDate(dueDateStr);
                      
                      // Only add if we have a due date, usually
