@@ -134,11 +134,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ConnectRe
         }
     });
 
-    if (!cookiesToStore['_gradescope_session']) {
-      console.error('Failed to extract _gradescope_session from cookies. Raw:', allCookiesRaw);
+    // Verify we have the critical authenticated tokens
+    // _gradescope_session might exist even for unauthenticated sessions
+    // signed_token is the proof of successful login
+    if (!cookiesToStore['_gradescope_session'] || !cookiesToStore['signed_token']) {
+      console.error('Failed to extract authenticated tokens. Missing signed_token or session.');
+      console.error('Tokens found:', Object.keys(cookiesToStore));
+      
       return NextResponse.json(
-        { success: false, error: 'Failed to extract session token from Gradescope response. Please check your credentials.' },
-        { status: 500 }
+        { success: false, error: 'Login failed. Please check your password. (Missing authentication signals)' },
+        { status: 401 }
       )
     }
 

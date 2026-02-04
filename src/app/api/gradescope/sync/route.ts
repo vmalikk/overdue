@@ -75,17 +75,25 @@ export async function POST(request: NextRequest) {
     // 1. Fetch Account (Dashboard) to Scrape Courses
     // The API /api/v1/courses does not seem to reliably work for students
     console.log('Gradescope Sync: Fetching account page...');
+    // console.log('Gradescope Sync: Using Cookies:', cookieHeader); 
+    
     const accountRes = await fetch(`${GRADESCOPE_BASE_URL}/account`, { 
         headers: headers,
         redirect: 'follow' 
     });
 
     if (!accountRes.ok) {
-        if (accountRes.status === 401 || accountRes.status === 403 || accountRes.url.includes('/login')) {
+        if (accountRes.status === 401 || accountRes.status === 403) {
              return NextResponse.json({ success: false, error: 'Gradescope session expired. Please reconnect.' }, { status: 401 })
         }
         console.error(`Gradescope Sync: Failed to fetch account page. Status: ${accountRes.status}`);
-        return NextResponse.json({ success: false, error: 'Failed to fetch dashboard from Gradescope' }, { status: 500 })
+        return NextResponse.json({ success: false, error: 'Failed to access Gradescope dashboard' }, { status: 500 })
+    }
+    
+    // Check if we were redirected to login
+    if (accountRes.url.includes('/login')) {
+         console.warn('Gradescope Sync: Redirected to login page. Session likely invalid.');
+         return NextResponse.json({ success: false, error: 'Session invalid. Please reconnect.' }, { status: 401 });
     }
 
     const accountHtml = await accountRes.text();
@@ -94,6 +102,11 @@ export async function POST(request: NextRequest) {
     // Debug: Log the page title or login check
     const pageTitle = $('title').text();
     console.log('Gradescope Sync: Page Title:', pageTitle);
+
+    // If title suggests login
+    if (pageTitle.includes("Log In")) {
+         return NextResponse.json({ success: false, error: 'Session invalid (Login Page detected). Please reconnect.' }, { status: 401 });
+    }
     
     interface GSCourse {
         id: string;
