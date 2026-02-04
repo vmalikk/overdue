@@ -8,7 +8,7 @@ import { useCourseStore } from '@/store/courseStore'
 import { CalendarSyncSection } from './CalendarSyncSection'
 
 export function SettingsPage() {
-  const { showToast, apiKey, setApiKey } = useUIStore()
+  const { showToast, apiKey, setApiKey, snowEnabled, toggleSnow } = useUIStore()
   const { deleteAllAssignments, assignments } = useAssignmentStore()
   const { deleteAllCourses, courses } = useCourseStore()
   const [isExporting, setIsExporting] = useState(false)
@@ -157,6 +157,34 @@ export function SettingsPage() {
                 <Button onClick={handleClearAll} variant="danger" disabled={isClearing}>
                   {isClearing ? 'Deleting...' : 'Clear All'}
                 </Button>
+              </div>
+            </div>
+          </section>
+
+          {/* Visual Effects */}
+          <section className="bg-secondary border border-border rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">Visual Effects</h3>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-background rounded-lg">
+                <div>
+                  <h4 className="font-medium text-text-primary mb-1">Let it Snow</h4>
+                  <p className="text-sm text-text-muted">
+                    Add a festive snowfall animation to your screen
+                  </p>
+                </div>
+                <button
+                  onClick={toggleSnow}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    snowEnabled ? 'bg-blue-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      snowEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </section>

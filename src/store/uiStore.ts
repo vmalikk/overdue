@@ -17,6 +17,9 @@ interface UIStore {
   isSettingsOpen: boolean
   apiKey: string | null
 
+  // Visual effects
+  snowEnabled: boolean
+
   // Toast state
   toasts: Toast[]
 
@@ -34,6 +37,7 @@ interface UIStore {
   openSettings: () => void
   closeSettings: () => void
   setApiKey: (key: string | null) => void
+  toggleSnow: () => void
 
   // Actions - Toasts
   showToast: (message: string, type: Toast['type'], duration?: number) => void
@@ -58,6 +62,9 @@ export const useUIStore = create<UIStore>()(
       isSettingsOpen: false,
       apiKey: null,
 
+      // Visual effects
+      snowEnabled: false,
+
       // Initial toast state
       toasts: [],
 
@@ -80,6 +87,7 @@ export const useUIStore = create<UIStore>()(
       openSettings: () => set({ isSettingsOpen: true }),
       closeSettings: () => set({ isSettingsOpen: false }),
       setApiKey: (key) => set({ apiKey: key }),
+      toggleSnow: () => set((state) => ({ snowEnabled: !state.snowEnabled })),
 
       // Toast actions
       showToast: (message: string, type: Toast['type'], duration = 5000) => {
@@ -116,7 +124,7 @@ export const useUIStore = create<UIStore>()(
     }),
     {
       name: 'ui-storage',
-      partialize: (state) => ({ apiKey: state.apiKey }),
+      partialize: (state) => ({ apiKey: state.apiKey, snowEnabled: state.snowEnabled }),
     }
   )
 )
