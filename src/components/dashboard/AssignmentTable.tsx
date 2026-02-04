@@ -35,8 +35,22 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     loadCourses()
   }, [loadAssignments, loadCourses])
   // Apply props filters on top of store filters
+  // DEBUG: Log incoming data to diagnose filtering issues
+  if (filteredAssignments.length > 0 && process.env.NODE_ENV === 'development') {
+    console.log('[AssignmentTable] Filter Debug:', {
+      totalFromStore: filteredAssignments.length,
+      filterStatus,
+      filterTime,
+      categories: filteredAssignments.map(a => a.category),
+      statuses: filteredAssignments.map(a => a.status),
+      sampleDeadline: filteredAssignments[0]?.deadline,
+      deadlineType: typeof filteredAssignments[0]?.deadline,
+    });
+  }
+
   const displayedAssignments = filteredAssignments.filter(assignment => {
     // 1. Hide Calendar Events (keeping pure assignments only)
+    // Use enum constant for type safety
     if (assignment.category === AssignmentCategory.EVENT) return false;
 
     // 2. Status Filter
@@ -50,20 +64,23 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
 
     // 3. Time Filter (Only for Dashboard / 'week' view)
     if (filterTime === 'week') {
+      const now = new Date();
       // Ensure deadline is a valid Date object
-      const deadline = new Date(assignment.deadline);
+      const deadline = assignment.deadline instanceof Date
+        ? assignment.deadline
+        : new Date(assignment.deadline);
+
       if (isNaN(deadline.getTime())) {
-        return true; // Failsafe: keep invalid dates visible so user notices errors
+        console.warn('[AssignmentTable] Invalid deadline for:', assignment.title, assignment.deadline);
+        return true; // Keep invalid dates to be safe
       }
 
       // "This Week" = Overdue items + Items due in next 7 days
-      // We explicitly exclude anything strictly AFTER 7 days from now.
-      const now = new Date();
-      const cutoff = new Date();
-      cutoff.setDate(now.getDate() + 7);
-      cutoff.setHours(23, 59, 59, 999); // End of that day
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(now.getDate() + 7);
 
-      if (deadline > cutoff) return false;
+      // Hide if deadline is too far in future
+      if (deadline > sevenDaysFromNow) return false;
     }
 
     return true;

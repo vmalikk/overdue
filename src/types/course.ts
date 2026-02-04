@@ -23,15 +23,6 @@ export interface Course {
   description?: string
   active: boolean               // Archive old courses
   createdAt: Date
-  categoryScores?: Record<string, number> // Map of category name to percentage score (0-100)
-  gradeData?: Record<string, GradeItem[]> // Detailed grade items per category
-}
-
-export interface GradeItem {
-  id: string
-  name: string
-  score: number // user score (e.g. 85)
-  maxScore: number // total possible (e.g. 100)
 }
 
 // Form data for creating/updating courses
