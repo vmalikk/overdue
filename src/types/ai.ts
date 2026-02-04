@@ -1,13 +1,8 @@
-import { Priority } from './assignment'
-
 // Parsed assignment data from AI
 export interface ParsedAssignment {
   title: string
   courseCode?: string
   deadline?: Date
-  priority?: Priority
-  estimatedHours?: number
-  description?: string
 }
 
 // Natural language parsing result from Gemini
@@ -24,7 +19,6 @@ export enum AISuggestionType {
   DEADLINE = 'deadline',
   STUDY_TIP = 'studyTip',
   WORKLOAD = 'workload',
-  TIME_ESTIMATE = 'timeEstimate',
 }
 
 // AI suggestion interface
@@ -63,7 +57,6 @@ export interface WorkloadAnalysis {
   weeklyWorkload: Array<{
     weekStart: Date
     assignmentCount: number
-    totalEstimatedHours: number
     intensity: 'low' | 'moderate' | 'high' | 'extreme'
     majorDeadlines: string[]
   }>

@@ -1,5 +1,5 @@
 import { Client, Databases, Query, ID, Permission, Role } from "appwrite";
-import { Assignment, AssignmentStatus, Priority, AssignmentCategory } from '@/types/assignment';
+import { Assignment, AssignmentStatus, AssignmentCategory } from '@/types/assignment';
 import { Course } from '@/types/course';
 
 const client = new Client()
@@ -61,13 +61,10 @@ export async function getAssignment(id: string): Promise<Assignment | undefined>
 export async function addAssignment(assignment: Omit<Assignment, 'id' | 'createdAt' | 'updatedAt'>, userId: string): Promise<Assignment> {
   const documentData = {
     title: assignment.title,
-    description: assignment.description || null,
     courseId: assignment.courseId,
     deadline: assignment.deadline instanceof Date ? assignment.deadline.toISOString() : assignment.deadline,
-    priority: assignment.priority,
     status: assignment.status,
     category: assignment.category || AssignmentCategory.ASSIGNMENT,
-    estimatedHours: assignment.estimatedHours || null,
     tags: assignment.tags || [],
     notes: assignment.notes || null,
     attachmentFileId: assignment.attachmentFileId || null,
@@ -75,7 +72,12 @@ export async function addAssignment(assignment: Omit<Assignment, 'id' | 'created
     userId: userId,
     completedAt: assignment.completedAt ? (assignment.completedAt instanceof Date ? assignment.completedAt.toISOString() : assignment.completedAt) : null,
     googleCalendarEventId: assignment.googleCalendarEventId || null,
-    calendarSynced: assignment.calendarSynced || false
+    calendarSynced: assignment.calendarSynced || false,
+    // Gradescope fields
+    source: assignment.source || 'manual',
+    gradescopeId: assignment.gradescopeId || null,
+    gradescopeCourseId: assignment.gradescopeCourseId || null,
+    gradescopeCourseName: assignment.gradescopeCourseName || null
   };
   console.log('[database] addAssignment - saving document:', JSON.stringify(documentData, null, 2))
 
@@ -224,13 +226,10 @@ function mapDocumentToAssignment(doc: any): Assignment {
   return {
     id: doc.$id,
     title: doc.title,
-    description: doc.description,
     courseId: doc.courseId,
     deadline: new Date(doc.deadline),
-    priority: doc.priority as Priority,
     status: doc.status as AssignmentStatus,
     category: (doc.category as AssignmentCategory) || AssignmentCategory.ASSIGNMENT,
-    estimatedHours: doc.estimatedHours,
     tags: doc.tags || [],
     notes: doc.notes,
     attachmentFileId: doc.attachmentFileId,
@@ -239,7 +238,12 @@ function mapDocumentToAssignment(doc: any): Assignment {
     updatedAt: new Date(doc.$updatedAt),
     completedAt: doc.completedAt ? new Date(doc.completedAt) : undefined,
     googleCalendarEventId: doc.googleCalendarEventId,
-    calendarSynced: doc.calendarSynced
+    calendarSynced: doc.calendarSynced,
+    // Gradescope fields
+    source: doc.source || 'manual',
+    gradescopeId: doc.gradescopeId,
+    gradescopeCourseId: doc.gradescopeCourseId,
+    gradescopeCourseName: doc.gradescopeCourseName
   };
 }
 

@@ -104,11 +104,11 @@ export async function createCalendarEvent(
   const calendar = createCalendarClient(accessToken)
   
   const deadline = new Date(assignment.deadline)
-  const endTime = new Date(deadline.getTime() + (assignment.estimatedHours || 1) * 60 * 60 * 1000)
+  const endTime = new Date(deadline.getTime() + 60 * 60 * 1000)
 
   const event: calendar_v3.Schema$Event = {
     summary: assignment.title,
-    description: assignment.description || `Assignment: ${assignment.title}`,
+    description: assignment.notes || `Assignment: ${assignment.title}`,
     start: {
       dateTime: deadline.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -146,11 +146,11 @@ export async function updateCalendarEvent(
   const calendar = createCalendarClient(accessToken)
   
   const deadline = new Date(assignment.deadline)
-  const endTime = new Date(deadline.getTime() + (assignment.estimatedHours || 1) * 60 * 60 * 1000)
+  const endTime = new Date(deadline.getTime() + 60 * 60 * 1000)
 
   const event: calendar_v3.Schema$Event = {
     summary: assignment.title,
-    description: assignment.description || `Assignment: ${assignment.title}`,
+    description: assignment.notes || `Assignment: ${assignment.title}`,
     start: {
       dateTime: deadline.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,

@@ -3,7 +3,6 @@
 // Character limits
 export const LIMITS = {
   ASSIGNMENT_TITLE_MAX: 100,
-  ASSIGNMENT_DESCRIPTION_MAX: 500,
   COURSE_CODE_MAX: 20,
   COURSE_NAME_MAX: 100,
 }

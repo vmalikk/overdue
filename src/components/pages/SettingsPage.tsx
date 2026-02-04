@@ -6,6 +6,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { CalendarSyncSection } from './CalendarSyncSection'
+import { GradescopeSyncSection } from './GradescopeSyncSection'
 
 export function SettingsPage() {
   const { showToast, apiKey, setApiKey, snowEnabled, toggleSnow } = useUIStore()
@@ -13,7 +14,7 @@ export function SettingsPage() {
   const { deleteAllCourses, courses } = useCourseStore()
   const [isExporting, setIsExporting] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
-  const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'ai'>('general')
+  const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'gradescope' | 'ai'>('general')
   const [inputKey, setInputKey] = useState('')
   const [isKeyVisible, setIsKeyVisible] = useState(false)
 
@@ -107,6 +108,16 @@ export function SettingsPage() {
         >
           Calendar Sync
           {activeSection === 'sync' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveSection('gradescope')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'gradescope' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
+        >
+          Gradescope
+          {activeSection === 'gradescope' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
           )}
         </button>
@@ -245,6 +256,10 @@ export function SettingsPage() {
 
       {activeSection === 'sync' && (
         <CalendarSyncSection />
+      )}
+
+      {activeSection === 'gradescope' && (
+        <GradescopeSyncSection />
       )}
 
       {activeSection === 'ai' && (

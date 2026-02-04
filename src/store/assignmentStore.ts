@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Assignment, AssignmentStatus, Priority, AssignmentFormData } from '@/types/assignment'
+import { Assignment, AssignmentStatus, AssignmentFormData } from '@/types/assignment'
 import * as db from '@/lib/appwrite/database'
 import { uploadFile } from '@/lib/appwrite/storage'
 import { useCalendarStore } from './calendarStore'
@@ -12,7 +12,7 @@ interface AssignmentStore {
   filterStatus?: AssignmentStatus
   filterCourseId?: string
   filterDateRange?: { start: Date; end: Date }
-  sortBy: 'deadline' | 'priority' | 'createdAt' | 'title'
+  sortBy: 'deadline' | 'createdAt' | 'title'
   sortOrder: 'asc' | 'desc'
   isLoading: boolean
   userId: string | null
@@ -31,7 +31,7 @@ interface AssignmentStore {
   setFilterStatus: (status?: AssignmentStatus) => void
   setFilterCourseId: (courseId?: string) => void
   setFilterDateRange: (range?: { start: Date; end: Date }) => void
-  setSortBy: (sortBy: 'deadline' | 'priority' | 'createdAt' | 'title') => void
+  setSortBy: (sortBy: 'deadline' | 'createdAt' | 'title') => void
   setSortOrder: (order: 'asc' | 'desc') => void
   applyFilters: () => void
 
@@ -294,7 +294,7 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   },
 
   // Set sort field
-  setSortBy: (sortBy: 'deadline' | 'priority' | 'createdAt' | 'title') => {
+  setSortBy: (sortBy: 'deadline' | 'createdAt' | 'title') => {
     set({ sortBy })
     get().applyFilters()
   },
@@ -325,7 +325,6 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       filtered = filtered.filter(
         (a) =>
           a.title.toLowerCase().includes(query) ||
-          a.description?.toLowerCase().includes(query) ||
           a.notes?.toLowerCase().includes(query)
       )
     }
@@ -358,15 +357,8 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
         case 'deadline':
           comparison = new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
           break
-        case 'priority':
-          const priorityOrder = { high: 3, medium: 2, low: 1 }
-          comparison = priorityOrder[a.priority] - priorityOrder[b.priority]
-          break
         case 'createdAt':
           comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          break
-        case 'title':
-          comparison = a.title.localeCompare(b.title)
           break
       }
 

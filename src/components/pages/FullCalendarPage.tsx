@@ -170,7 +170,7 @@ export function FullCalendarPage() {
         dbEvts.push({
           id: a.id,
           summary: a.title,
-          description: a.description,
+          description: a.notes,
           start: a.deadline,
           end: endTime,
           color: '#8e24aa', // Purple for internal DB events

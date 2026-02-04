@@ -10,7 +10,7 @@ import { CourseBadge } from './CourseBadge'
 import { CourseDetailModal } from './CourseDetailModal'
 import { DEFAULT_COURSE_COLORS, CourseFormData, OfficeHour, GradeWeight } from '@/types/course'
 import { ParsedSyllabus } from '@/types/ai'
-import { AssignmentCategory, AssignmentStatus, Priority } from '@/types/assignment'
+import { AssignmentCategory, AssignmentStatus } from '@/types/assignment'
 import { LIMITS } from '@/config/constants'
 import clsx from 'clsx'
 
@@ -93,7 +93,6 @@ export function CourseManager() {
               title: pa.title,
               courseId: targetCourseId,
               deadline: new Date(pa.date),
-              priority: Priority.MEDIUM,
               status: AssignmentStatus.NOT_STARTED,
               category: category,
               aiParsed: true

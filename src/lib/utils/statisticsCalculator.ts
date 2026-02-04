@@ -1,4 +1,4 @@
-import { Assignment, AssignmentStatus, Priority, AssignmentCategory } from '@/types/assignment'
+import { Assignment, AssignmentStatus, AssignmentCategory } from '@/types/assignment'
 import { Course } from '@/types/course'
 import { startOfDay, endOfDay, subDays, addDays, format, isAfter, isBefore, isSameDay } from 'date-fns'
 
@@ -57,21 +57,7 @@ export function getStatusDistribution(assignments: Assignment[]): StatusDistribu
   }
 }
 
-// Priority distribution
-export interface PriorityDistribution {
-  low: number
-  medium: number
-  high: number
-}
 
-export function getPriorityDistribution(assignments: Assignment[]): PriorityDistribution {
-  const validAssignments = assignments.filter(a => a.category !== AssignmentCategory.EVENT)
-  return {
-    low: validAssignments.filter(a => a.priority === Priority.LOW).length,
-    medium: validAssignments.filter(a => a.priority === Priority.MEDIUM).length,
-    high: validAssignments.filter(a => a.priority === Priority.HIGH).length,
-  }
-}
 
 // Course workload
 export interface CourseWorkloadItem {
@@ -240,19 +226,6 @@ export function getProductivityInsights(allAssignments: Assignment[]): Productiv
   const assignments = allAssignments.filter(a => a.category !== AssignmentCategory.EVENT)
   const insights: ProductivityInsight[] = []
   const now = new Date()
-
-  // High priority completion rate
-  const highPriority = assignments.filter(a => a.priority === Priority.HIGH)
-  const highPriorityCompleted = highPriority.filter(a => a.status === AssignmentStatus.COMPLETED)
-  if (highPriority.length > 0) {
-    const rate = Math.round((highPriorityCompleted.length / highPriority.length) * 100)
-    insights.push({
-      type: rate >= 80 ? 'positive' : rate >= 50 ? 'neutral' : 'warning',
-      title: 'High Priority',
-      message: `${rate}% of high priority tasks completed`,
-      value: `${highPriorityCompleted.length}/${highPriority.length}`,
-    })
-  }
 
   // Overdue count
   const overdue = assignments.filter(a => {

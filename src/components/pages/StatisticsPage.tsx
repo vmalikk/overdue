@@ -7,7 +7,6 @@ import {
   calculateCompletionRate,
   calculateStreak,
   getStatusDistribution,
-  getPriorityDistribution,
   getCourseWorkload,
   getDeadlineTrends,
   getProductivityInsights,
@@ -17,7 +16,6 @@ import { CompletionRate } from '@/components/statistics/CompletionRate'
 import { StreakTracker } from '@/components/statistics/StreakTracker'
 import { QuickStats } from '@/components/statistics/QuickStats'
 import { StatusChart } from '@/components/statistics/StatusChart'
-import { PriorityChart } from '@/components/statistics/PriorityChart'
 import { CourseWorkload } from '@/components/statistics/CourseWorkload'
 import { DeadlineTrends } from '@/components/statistics/DeadlineTrends'
 import { ProductivityCards } from '@/components/statistics/ProductivityCard'
@@ -33,7 +31,6 @@ export function StatisticsPage() {
       streak: calculateStreak(assignments),
       quickStats: getQuickStats(assignments),
       statusDistribution: getStatusDistribution(assignments),
-      priorityDistribution: getPriorityDistribution(assignments),
       courseWorkload: getCourseWorkload(assignments, courses),
       weekTrends: getDeadlineTrends(assignments, 'week'),
       monthTrends: getDeadlineTrends(assignments, 'month'),
@@ -61,9 +58,8 @@ export function StatisticsPage() {
       </div>
 
       {/* Middle Row: Distribution Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <StatusChart distribution={stats.statusDistribution} />
-        <PriorityChart distribution={stats.priorityDistribution} />
       </div>
 
       {/* Course Workload - Full Width */}

@@ -13,9 +13,9 @@ import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { useAIStore } from '@/store/aiStore'
-import { Priority, AssignmentCategory, AssignmentStatus } from '@/types/assignment'
+import { AssignmentCategory, AssignmentStatus } from '@/types/assignment'
 import { NLPParseResult } from '@/types/ai'
-import { DEFAULTS, LIMITS } from '@/config/constants'
+import { LIMITS } from '@/config/constants'
 import { MAX_FILE_SIZE } from '@/lib/appwrite/storage'
 
 export function QuickAddForm() {
@@ -34,12 +34,9 @@ export function QuickAddForm() {
 
   const [formData, setFormData] = useState({
     title: '',
-    description: '',
     courseId: '',
     deadline: new Date(),
-    priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
     category: AssignmentCategory.ASSIGNMENT,
-    estimatedHours: undefined as number | undefined,
     notes: '',
     file: undefined as File | undefined,
   })
@@ -51,12 +48,9 @@ export function QuickAddForm() {
       if (assignment) {
         setFormData({
           title: assignment.title,
-          description: assignment.description || '',
           courseId: assignment.courseId,
           deadline: new Date(assignment.deadline),
-          priority: assignment.priority,
           category: assignment.category,
-          estimatedHours: assignment.estimatedHours,
           notes: assignment.notes || '',
           file: undefined, // Cannot edit file easily yet
         })
@@ -65,12 +59,9 @@ export function QuickAddForm() {
       // Reset when closed
       setFormData({
         title: '',
-        description: '',
         courseId: '',
         deadline: new Date(),
-        priority: DEFAULTS.ASSIGNMENT_PRIORITY as Priority,
         category: AssignmentCategory.ASSIGNMENT,
-        estimatedHours: undefined,
         notes: '',
         file: undefined,
       })
@@ -115,9 +106,6 @@ export function QuickAddForm() {
       ...prev,
       title: parsed.title || prev.title,
       deadline: parsed.deadline ? new Date(parsed.deadline) : prev.deadline,
-      priority: (parsed.priority as Priority) || prev.priority,
-      estimatedHours: parsed.estimatedHours || prev.estimatedHours,
-      description: parsed.description || prev.description,
     }))
 
     // Try to match course by code
@@ -141,13 +129,10 @@ export function QuickAddForm() {
     try {
       await addAssignment({
         title: formData.title.trim(),
-        description: formData.description.trim() || undefined,
         courseId: formData.courseId,
         deadline: formData.deadline,
-        priority: formData.priority,
         status: AssignmentStatus.NOT_STARTED,
         category: formData.category,
-        estimatedHours: formData.estimatedHours,
         notes: formData.notes.trim() || undefined,
         aiParsed: true,
         aiConfidence: parsedResult.confidence,
@@ -181,12 +166,9 @@ export function QuickAddForm() {
       if (isEditing && editingAssignmentId) {
         await updateAssignment(editingAssignmentId, {
           title: formData.title.trim(),
-          description: formData.description.trim() || undefined,
           courseId: formData.courseId,
           deadline: formData.deadline,
-          priority: formData.priority,
           category: formData.category,
-          estimatedHours: formData.estimatedHours,
           notes: formData.notes.trim() || undefined,
           // File update not supported in quick edit yet
         })
@@ -194,13 +176,10 @@ export function QuickAddForm() {
       } else {
         await addAssignment({
           title: formData.title.trim(),
-          description: formData.description.trim() || undefined,
           courseId: formData.courseId,
           deadline: formData.deadline,
-          priority: formData.priority,
           status: AssignmentStatus.NOT_STARTED,
           category: formData.category,
-          estimatedHours: formData.estimatedHours,
           notes: formData.notes.trim() || undefined,
           file: formData.file,
           aiParsed: !!parsedResult,
@@ -229,12 +208,6 @@ export function QuickAddForm() {
     }
   }
 
-  const priorityOptions = [
-    { value: Priority.LOW, label: 'Low' },
-    { value: Priority.MEDIUM, label: 'Medium' },
-    { value: Priority.HIGH, label: 'High' },
-  ]
-
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={isEditing ? "Edit Assignment" : "Add New Assignment"} size="lg">
       {/* AI Parsing Input */}
@@ -243,24 +216,24 @@ export function QuickAddForm() {
           {apiKey ? (
             <>
               <p className="text-sm text-text-muted mb-3">
-                ✨ Try AI parsing - describe your assignment naturally:
+                Try AI parsing - describe your assignment naturally:
               </p>
               <NLPInput
                 onParsed={handleParsed}
-                placeholder="e.g., ECE 306 lab due Friday 5pm, high priority"
+                placeholder="e.g., ECE 306 lab due Friday 5pm"
               />
               <button
                 type="button"
                 onClick={() => setShowManualForm(true)}
                 className="mt-3 text-xs text-text-muted hover:text-text-secondary"
               >
-                Or enter manually →
+                Or enter manually
               </button>
             </>
           ) : (
             <div className="bg-secondary/50 p-4 rounded-lg border border-border text-center">
               <p className="text-sm text-text-primary font-medium mb-1">
-                ✨ AI Parsing Available
+                AI Parsing Available
               </p>
               <p className="text-xs text-text-muted mb-3">
                 Enter your Google Gemini API Key to enable smart assignment parsing, study tips, and syllabus import.
@@ -328,14 +301,6 @@ export function QuickAddForm() {
             showTime
           />
 
-          {/* Priority */}
-          <Select
-            label="Priority"
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
-            options={priorityOptions}
-          />
-
           {/* Category */}
           <Select
             label="Category"
@@ -353,38 +318,18 @@ export function QuickAddForm() {
             ]}
           />
 
-          {/* Estimated Hours */}
-          <Input
-            label="Estimated Hours (optional)"
-            type="number"
-            min="0"
-            step="0.5"
-            value={formData.estimatedHours || ''}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                estimatedHours: e.target.value ? parseFloat(e.target.value) : undefined,
-              })
-            }
-            placeholder="e.g., 3.5"
-          />
-
-          {/* Description */}
+          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">
-              Description (optional)
+              Notes (optional)
             </label>
             <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Additional details about the assignment..."
-              maxLength={LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
-              rows={3}
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Additional notes..."
+              rows={2}
               className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-priority-medium resize-none"
             />
-            <p className="mt-1 text-xs text-text-muted">
-              {formData.description.length} / {LIMITS.ASSIGNMENT_DESCRIPTION_MAX}
-            </p>
           </div>
 
           {/* File Upload */}
@@ -410,7 +355,7 @@ export function QuickAddForm() {
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <Button type="submit" variant="primary" fullWidth>
-              Add Assignment
+              {isEditing ? 'Update Assignment' : 'Add Assignment'}
             </Button>
             <Button type="button" variant="secondary" onClick={handleClose}>
               Cancel

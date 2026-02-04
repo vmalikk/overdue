@@ -203,16 +203,6 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
               </th>
 
               <th className="px-4 py-3 text-center" style={{ width: '10%' }}>
-                <button
-                  onClick={() => handleSort('priority')}
-                  className="flex items-center justify-center gap-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors mx-auto"
-                >
-                  Priority
-                  <SortIcon field="priority" />
-                </button>
-              </th>
-
-              <th className="px-4 py-3 text-center" style={{ width: '10%' }}>
                 <span className="text-sm font-semibold text-text-secondary">Actions</span>
               </th>
             </tr>
@@ -221,7 +211,7 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
           <tbody>
             {displayedAssignments.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center">
+                <td colSpan={5} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <svg
                       className="w-12 h-12 text-text-muted"

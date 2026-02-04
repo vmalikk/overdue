@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Assignment, AssignmentStatus } from '@/types/assignment'
 import { StatusIndicator } from './StatusIndicator'
 import { CourseBadge } from '@/components/courses/CourseBadge'
-import { Button } from '@/components/ui/Button'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { useUIStore } from '@/store/uiStore'
@@ -41,9 +40,8 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
   }
 
   const handleRowClick = (e: React.MouseEvent) => {
-    // Only trigger if we are not editing and prop exists
     if (onClick && !isEditing) {
-        onClick()
+      onClick()
     }
   }
 
@@ -94,17 +92,6 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
     [AssignmentStatus.COMPLETED]: 'Completed',
   }
 
-  const statusColors: Record<AssignmentStatus, string> = {
-    [AssignmentStatus.NOT_STARTED]: 'bg-gray-500',
-    [AssignmentStatus.IN_PROGRESS]: 'bg-yellow-500',
-    [AssignmentStatus.COMPLETED]: 'bg-green-500',
-  }
-
-  const priorityIcons = {
-    high: '⚡',
-    medium: '➖',
-    low: '⬇️',
-  }  
   const categoryIcons: Record<string, string> = {
     'exam': '📝',
     'quiz': '✍️',
@@ -113,8 +100,10 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
     'discussion': '💬',
     'homework': '📚',
     'assignment': '📄',
+    'event': '📅',
     'other': '📦'
   }
+
   // Mobile Card View
   if (isMobile) {
     return (
@@ -131,8 +120,8 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
             onClick={handleComplete}
             className={clsx(
               'mt-1 p-1 rounded-full border-2 transition-colors flex-shrink-0',
-              isCompleted 
-                ? 'border-status-green bg-status-green text-white' 
+              isCompleted
+                ? 'border-status-green bg-status-green text-white'
                 : 'border-text-muted hover:border-status-green'
             )}
           >
@@ -153,21 +142,10 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
               )}>
                 {assignment.title}
               </h3>
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-lg flex-shrink-0" title={`${assignment.priority} priority`}>
-                    {priorityIcons[assignment.priority]}
-                </span>
-                 <span className="text-xs text-text-muted bg-surface-hover px-1.5 py-0.5 rounded border border-border">
-                   {categoryIcons[assignment.category] || '📄'} {assignment.category}
-                </span>
-              </div>
+              <span className="text-xs text-text-muted bg-surface-hover px-1.5 py-0.5 rounded border border-border flex-shrink-0">
+                {categoryIcons[assignment.category] || '📄'} {assignment.category}
+              </span>
             </div>
-            
-            {assignment.description && (
-              <p className="text-sm text-text-muted mt-1 line-clamp-2">
-                {assignment.description}
-              </p>
-            )}
 
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {course && <CourseBadge course={course} size="sm" />}
@@ -216,14 +194,14 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
         <StatusIndicator assignment={assignment} />
       </td>
 
-      {/* Title - 40% width */}
-      <td className="px-4 py-3" style={{ width: '40%' }}>
+      {/* Title - 50% width */}
+      <td className="px-4 py-3" style={{ width: '50%' }}>
         {isEditing ? (
           <input
             type="text"
             value={editedTitle}
             onChange={(e) => setEditedTitle(e.target.value)}
-            onClick={(e) => e.stopPropagation()} // Prevent row click when clicking input
+            onClick={(e) => e.stopPropagation()}
             onBlur={handleTitleEdit}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleTitleEdit()
@@ -244,14 +222,9 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
           >
             {assignment.title}
             <span className="text-xs text-text-muted mt-1 inline-block ml-2 bg-secondary px-1.5 py-0.5 rounded border border-border">
-                {categoryIcons[assignment.category] || '📄'} {assignment.category}
+              {categoryIcons[assignment.category] || '📄'} {assignment.category}
             </span>
           </span>
-        )}
-        {assignment.description && (
-          <p className="text-sm text-text-muted mt-1 line-clamp-1">
-            {assignment.description}
-          </p>
         )}
       </td>
 
@@ -267,13 +240,6 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
       {/* Deadline - 20% width */}
       <td className="px-4 py-3 text-text-primary text-sm" style={{ width: '20%' }}>
         {formatDeadline(assignment.deadline)}
-      </td>
-
-      {/* Priority - 10% width */}
-      <td className="px-4 py-3 text-center" style={{ width: '10%' }}>
-        <span className="text-xl" title={`${assignment.priority} priority`}>
-          {priorityIcons[assignment.priority]}
-        </span>
       </td>
 
       {/* Actions - 10% width */}

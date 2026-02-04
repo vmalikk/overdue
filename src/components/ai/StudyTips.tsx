@@ -10,19 +10,15 @@ import { format } from 'date-fns'
 interface StudyTipsProps {
   assignmentId: string
   title: string
-  description?: string
   courseCode?: string
   deadline: Date
-  estimatedHours?: number
 }
 
 export function StudyTips({
   assignmentId,
   title,
-  description,
   courseCode,
   deadline,
-  estimatedHours,
 }: StudyTipsProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,10 +40,8 @@ export function StudyTips({
         },
         body: JSON.stringify({
           title,
-          description,
           courseCode,
           deadline: deadline.toISOString(),
-          estimatedHours,
           type: 'tips',
         }),
       })

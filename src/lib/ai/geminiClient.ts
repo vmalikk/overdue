@@ -72,8 +72,6 @@ Return a JSON object with these fields:
 - title: string (the assignment title, max 100 characters)
 - courseCode: string | null (course code like "ECE 306", "CS 101", etc.)
 - deadline: string | null (ISO 8601 date string, interpret relative dates like "Friday" or "next week" based on today being ${new Date().toISOString().split('T')[0]})
-- priority: "low" | "medium" | "high" | null (infer from urgency words)
-- estimatedHours: number | null (if mentioned)
 - description: string | null (any additional details)
 - confidence: number (0-1, how confident you are in the parsing)
 - warnings: string[] (any ambiguities or assumptions made)
@@ -88,8 +86,6 @@ Example for "ECE 306 lab due Friday 5pm":
   "title": "ECE 306 Lab",
   "courseCode": "ECE 306",
   "deadline": "2024-01-26T17:00:00.000Z",
-  "priority": null,
-  "estimatedHours": null,
   "description": null,
   "confidence": 0.95,
   "warnings": []
@@ -123,9 +119,6 @@ Example for "ECE 306 lab due Friday 5pm":
         title: parsed.title || input,
         courseCode: parsed.courseCode || undefined,
         deadline: parsed.deadline ? new Date(parsed.deadline) : undefined,
-        priority: parsed.priority || undefined,
-        estimatedHours: parsed.estimatedHours || undefined,
-        description: parsed.description || undefined,
       },
       confidence: parsed.confidence || 0.5,
       warnings: parsed.warnings || [],
@@ -151,7 +144,6 @@ export async function generateStudyTips(
   description: string | undefined,
   courseCode: string | undefined,
   deadline: Date,
-  estimatedHours: number | undefined,
   apiKey?: string
 ): Promise<StudyTipsResponse> {
   const ai = getAIClient(apiKey)
@@ -164,7 +156,6 @@ Title: ${title}
 ${description ? `Description: ${description}` : ''}
 ${courseCode ? `Course: ${courseCode}` : ''}
 Days until due: ${daysUntilDue}
-${estimatedHours ? `Estimated hours: ${estimatedHours}` : ''}
 
 Return a JSON object with:
 - tips: string[] (3-5 specific, actionable tips)

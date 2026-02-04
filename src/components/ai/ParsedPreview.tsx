@@ -82,26 +82,7 @@ export function ParsedPreview({ result, onAccept, onEdit, onReject }: ParsedPrev
           </div>
         )}
 
-        {parsed.priority && (
-          <div>
-            <span className="text-text-muted text-xs">Priority</span>
-            <p className="text-text-primary capitalize">{parsed.priority}</p>
-          </div>
-        )}
 
-        {parsed.estimatedHours && (
-          <div>
-            <span className="text-text-muted text-xs">Estimated Hours</span>
-            <p className="text-text-primary">{parsed.estimatedHours}h</p>
-          </div>
-        )}
-
-        {parsed.description && (
-          <div className="col-span-2">
-            <span className="text-text-muted text-xs">Description</span>
-            <p className="text-text-secondary text-sm">{parsed.description}</p>
-          </div>
-        )}
       </div>
 
       {/* Warnings */}

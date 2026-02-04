@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { Assignment, Priority } from '@/types/assignment'
+import { Assignment } from '@/types/assignment'
 import { useCourseStore } from '@/store/courseStore'
 import { useUIStore } from '@/store/uiStore'
 import { CourseBadge } from '@/components/courses/CourseBadge'
@@ -43,11 +43,7 @@ export function AssignmentDetailModal({
     const fetchFileUrl = async () => {
       if (assignment?.attachmentFileId) {
         try {
-          // Check if we already have the full URL (if storage returns valid URL directly) or need to fetch it
-          // The getFileDownloadUrl we implemented returns a URL object, but we need string
-          // Let's assume the previous fix returns a URL object or string href
           const urlResult = await getFileDownloadUrl(assignment.attachmentFileId)
-          // Just in case it returns an object with href (standard URL object)
           const url = typeof urlResult === 'object' && 'href' in (urlResult as any)
             ? (urlResult as any).href
             : String(urlResult)
@@ -71,23 +67,32 @@ export function AssignmentDetailModal({
 
   const course = getCourseById(assignment.courseId)
 
+  const categoryIcons: Record<string, string> = {
+    'exam': '📝',
+    'quiz': '✍️',
+    'project': '🚀',
+    'lab': '🧪',
+    'discussion': '💬',
+    'homework': '📚',
+    'assignment': '📄',
+    'event': '📅',
+    'other': '📦'
+  }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={assignment.title}
-      size="lg" // You might need to add 'lg' support to your Modal component or check existing sizes
+      size="lg"
     >
       <div className="space-y-6">
         {/* Header Details */}
         <div className="flex flex-col gap-2 border-b border-border pb-4">
           <div className="flex justify-between items-start">
             {course && <CourseBadge course={course} />}
-            <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase
-                 ${assignment.priority === Priority.HIGH ? 'bg-priority-high/10 text-priority-high' :
-                assignment.priority === Priority.MEDIUM ? 'bg-priority-medium/10 text-priority-medium' :
-                  'bg-priority-low/10 text-priority-low'}`}>
-              {assignment.priority} Priority
+            <span className="px-2 py-1 bg-secondary text-text-primary text-xs rounded font-medium">
+              {categoryIcons[assignment.category] || '📄'} {assignment.category}
             </span>
           </div>
         </div>
@@ -110,22 +115,18 @@ export function AssignmentDetailModal({
               </p>
             </div>
 
-            {assignment.estimatedHours && (
+            {assignment.source === 'gradescope' && (
               <div>
-                <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Estimated Effort</h3>
-                <p className="text-text-primary">{assignment.estimatedHours} hours</p>
+                <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Source</h3>
+                <p className="text-text-primary flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">Gradescope</span>
+                  {assignment.gradescopeCourseName}
+                </p>
               </div>
             )}
           </div>
 
           <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Description</h3>
-              <p className="text-text-primary whitespace-pre-wrap">
-                {assignment.description || <span className="text-text-muted italic">No description provided</span>}
-              </p>
-            </div>
-
             {assignment.notes && (
               <div>
                 <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Notes</h3>
@@ -142,10 +143,8 @@ export function AssignmentDetailModal({
           <StudyTips
             assignmentId={assignment.id}
             title={assignment.title}
-            description={assignment.description}
             courseCode={course?.code}
             deadline={new Date(assignment.deadline)}
-            estimatedHours={assignment.estimatedHours}
           />
         </div>
 

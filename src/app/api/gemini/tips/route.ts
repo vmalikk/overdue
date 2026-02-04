@@ -34,14 +34,12 @@ export async function POST(request: NextRequest) {
       description,
       courseCode,
       deadline,
-      estimatedHours,
       type = 'tips' // 'tips' or 'deadline'
     } = body as {
       title: string
       description?: string
       courseCode?: string
       deadline: string
-      estimatedHours?: number
       type?: 'tips' | 'deadline'
       existingAssignments?: { title: string; deadline: Date; courseCode?: string }[]
     }
@@ -116,7 +114,6 @@ export async function POST(request: NextRequest) {
       description,
       courseCode,
       deadlineDate,
-      estimatedHours,
       apiKey
     )
 

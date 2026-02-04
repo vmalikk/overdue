@@ -184,7 +184,7 @@ export function DayView({
             {/* Assignments */}
             {dayAssignments.map((assignment) => {
               const deadline = new Date(assignment.deadline)
-              const endTime = new Date(deadline.getTime() + (assignment.estimatedHours || 1) * 60 * 60 * 1000)
+              const endTime = new Date(deadline.getTime() + 60 * 60 * 1000)
               const style = getEventStyle(deadline, endTime)
               const status = calculateStatus(assignment)
 

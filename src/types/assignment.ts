@@ -5,13 +5,6 @@ export enum AssignmentStatus {
   COMPLETED = 'completed',
 }
 
-// Priority levels
-export enum Priority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-}
-
 // Status indicator colors based on deadline proximity
 export type StatusColor = 'red' | 'yellow' | 'green' | 'gray'
 
@@ -31,13 +24,10 @@ export enum AssignmentCategory {
 export interface Assignment {
   id: string                            // UUID
   title: string                          // Max 100 chars
-  description?: string                   // Max 500 chars
   courseId: string                       // Reference to Course
   deadline: Date
-  priority: Priority
   status: AssignmentStatus
   category: AssignmentCategory
-  estimatedHours?: number
   tags?: string[]
   notes?: string
 
@@ -58,6 +48,12 @@ export interface Assignment {
   aiParsed?: boolean
   aiConfidence?: number
   aiSuggestions?: string
+
+  // Gradescope integration (Phase 4)
+  source?: 'manual' | 'gradescope'
+  gradescopeId?: string
+  gradescopeCourseId?: string
+  gradescopeCourseName?: string
 }
 
 // Status indicator data with color and metadata
@@ -70,17 +66,19 @@ export interface StatusIndicatorData {
 // Form data for creating/updating assignments
 export interface AssignmentFormData {
   title: string
-  description?: string
   courseId: string
   deadline: Date
-  priority: Priority
   status: AssignmentStatus
   category: AssignmentCategory
-  estimatedHours?: number
   tags?: string[]
   notes?: string
   file?: File
   // AI fields (Phase 3)
   aiParsed?: boolean
   aiConfidence?: number
+  // Gradescope fields (Phase 4)
+  source?: 'manual' | 'gradescope'
+  gradescopeId?: string
+  gradescopeCourseId?: string
+  gradescopeCourseName?: string
 }

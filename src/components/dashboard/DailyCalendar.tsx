@@ -333,9 +333,6 @@ export function DailyCalendar() {
                               )}
                             </div>
                           </div>
-                          {assignment.priority === 'high' && (
-                            <span className="text-xs">⚡</span>
-                          )}
                         </div>
                       </div>
                     )
