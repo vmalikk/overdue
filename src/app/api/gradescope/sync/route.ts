@@ -91,6 +91,10 @@ export async function POST(request: NextRequest) {
     const accountHtml = await accountRes.text();
     const $ = cheerio.load(accountHtml);
     
+    // Debug: Log the page title or login check
+    const pageTitle = $('title').text();
+    console.log('Gradescope Sync: Page Title:', pageTitle);
+    
     interface GSCourse {
         id: string;
         name: string;
@@ -100,17 +104,17 @@ export async function POST(request: NextRequest) {
     const courses: GSCourse[] = [];
     
     // Scrape courses
-    // Look for links /courses/123 inside the course list
-    $('.courseList--term a').each((_, el) => {
-        const href = $(el).attr('href');
+    // Strategy: Look for all course box shortnames, then find the parent anchor
+    $('.courseBox--shortname').each((_, el) => {
+        const shortName = $(el).text().trim();
+        const parentAnchor = $(el).closest('a');
+        const href = parentAnchor.attr('href');
+        const name = parentAnchor.find('.courseBox--name').text().trim();
+        
         if (href && href.startsWith('/courses/')) {
             const id = href.split('/')[2];
-            const shortName = $(el).find('.courseBox--shortname').text().trim();
-            const name = $(el).find('.courseBox--name').text().trim();
-            
-            if (id) {
-                courses.push({ id, name, shortName });
-            }
+            console.log(`Gradescope Sync: Found course ${shortName} (ID: ${id})`);
+            courses.push({ id, name, shortName });
         }
     });
 
@@ -131,42 +135,54 @@ export async function POST(request: NextRequest) {
             
             // Parse Student Table
             const table = $c('#assignments-student-table');
+            console.log(`Gradescope Sync: Course ${course.id} - Table found: ${table.length > 0}`);
+            
             if (table.length > 0) {
-                 table.find('tbody tr').each((_, tr) => {
+                 table.find('tbody tr').each((i, tr) => {
                      const cells = $c(tr).find('td');
                      if (cells.length === 0) return;
                      
                      // Col 0: Name (contains link)
-                     const nameCell = $(cells[0]);
-                     const title = nameCell.text().trim();
+                     const nameCell = $c(cells[0]);
+                     const title = nameCell.text().trim(); // Note: This might include "Submitted" text if not careful? 
+                     // Usually nameCell has an anchor.
                      const linkHref = nameCell.find('a').attr('href');
-                     const assignmentId = linkHref ? linkHref.split('/').pop() : null;
+                     const assignmentId = linkHref ? linkHref.split('/').pop() : 'manual-' + i;
                      
-                     if (!assignmentId) return; // Skip if no ID
+                     // Helper to clean title logic if needed
+                     const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
                      // Col 2: Status
-                     const status = $(cells[2]).text().trim();
+                     const status = $c(cells[2]).text().trim();
                      
                      // Col 4: Due Date
                      let dueDateStr = '';
                      if (cells.length >= 5) {
-                         dueDateStr = $(cells[4]).text().trim(); // "OCT 25 AT 11:59PM"
+                         dueDateStr = $c(cells[4]).text().trim(); // "OCT 25 AT 11:59PM"
                      }
                      
+                     console.log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}"`);
+
                      const dueDate = parseGradescopeDate(dueDateStr);
                      
                      // Only add if we have a due date, usually
                      if (dueDate) {
                          allGsAssignments.push({
                              id: assignmentId,
-                             title: title,
+                             title: cleanTitle,
                              course_id: course.id,
                              course_name: course.shortName || course.name,
                              due_date: dueDate,
                              status: status
                          });
+                     } else {
+                         console.log('Gradescope Sync: Skipped due to invalid date parsing');
                      }
                  });
+            } else {
+                // Should we check for instructor view? Or maybe "No assignments" text?
+                const noAssignments = $c('body').text().includes('No assignments');
+                console.log(`Gradescope Sync: No assignment table. "No assignments" text present? ${noAssignments}`);
             }
         } else {
              console.error(`Failed to fetch course ${course.id}: ${courseRes.status}`);
