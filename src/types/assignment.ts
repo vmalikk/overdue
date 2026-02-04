@@ -50,7 +50,7 @@ export interface Assignment {
   aiSuggestions?: string
 
   // Gradescope integration (Phase 4)
-  source?: 'manual' | 'gradescope'
+  source?: 'manual' | 'gradescope' | 'moodle'
   gradescopeId?: string
   gradescopeCourseId?: string
   gradescopeCourseName?: string
@@ -77,7 +77,7 @@ export interface AssignmentFormData {
   aiParsed?: boolean
   aiConfidence?: number
   // Gradescope fields (Phase 4)
-  source?: 'manual' | 'gradescope'
+  source?: 'manual' | 'gradescope' | 'moodle'
   gradescopeId?: string
   gradescopeCourseId?: string
   gradescopeCourseName?: string
