@@ -15,6 +15,13 @@ The Gradescope integration allows users to:
 2. GitHub repository for running the sync workflow
 3. Vercel deployment (or similar) for the Next.js frontend
 
+### Important Note for SSO Users
+Users who log in to Gradescope via **School Credentials** (Canvas/Blackboard/SSO) must set a direct password on their Gradescope account to use this integration:
+1. Go to [Reset Password](https://www.gradescope.com/reset_password).
+2. Enter the school email address associated with the account.
+3. Follow the email instructions to set a password.
+4. Use this password to connect in the app (SSO login will still work for the website).
+
 ## Setup Steps
 
 ### 1. Generate Encryption Key
@@ -155,6 +162,14 @@ Gradescope sessions typically last 30 days. If your session expires:
 1. Go to Settings > Gradescope
 2. Enter your credentials again
 3. Click "Connect"
+
+### SSO / School Credentials Users
+
+This integration requires a password to generate a session token. If users normally log in via SSO (School Credentials):
+1. They should go to Gradescope's "Forgot Password" page.
+2. Enter their school email address.
+3. Follow the email instructions to set a password.
+4. They can now use this password to connect their account while still maintaining SSO access.
 
 ### Sync not running
 

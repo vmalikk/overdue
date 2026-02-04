@@ -250,6 +250,21 @@ export function GradescopeSyncSection() {
                 </div>
               </div>
 
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm text-text-muted">
+                <p className="font-semibold text-blue-400 mb-1">
+                  Using School Credentials?
+                </p>
+                <p>
+                  If you log in via a school portal, you need to set a specific password for your Gradescope account:
+                </p>
+                <ol className="list-decimal list-inside mt-2 space-y-1 ml-1 text-xs">
+                  <li>Go to <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">gradescope.com/reset_password</a></li>
+                  <li>Enter your school email address.</li>
+                  <li>Check your email to set a new password.</li>
+                  <li>Use that password here (school login will still work!).</li>
+                </ol>
+              </div>
+
               <Button
                 onClick={handleConnect}
                 variant="primary"
@@ -314,6 +329,13 @@ export function GradescopeSyncSection() {
             <p className="text-text-muted mt-1">
               Yes! We only store an encrypted session token, never your password.
               The token is encrypted with AES-256-GCM encryption.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-text-primary">I use School Credentials (SSO) to log in. What should I do?</p>
+            <p className="text-text-muted mt-1">
+              You can still connect! Go to the Gradescope login page, click &quot;Forgot your password?&quot;, and enter your school email.
+              This will let you set a password for your account without affecting your school login. Use that password here.
             </p>
           </div>
           <div>
