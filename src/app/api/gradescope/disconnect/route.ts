@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, createAdminClient } from '@/lib/appwrite/server'
 import { DisconnectResponse } from '@/types/gradescope'
 
-export async function POST(): Promise<NextResponse<DisconnectResponse>> {
+export async function POST(request: NextRequest): Promise<NextResponse<DisconnectResponse>> {
   try {
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(request)
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized. Please log in.' },

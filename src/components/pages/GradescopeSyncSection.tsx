@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import Link from 'next/link'
 import { getUnresolvedConflictCount } from '@/lib/appwrite/conflicts'
 import { useAuth } from '@/components/providers/AppwriteAuthProvider'
+import { account } from '@/lib/appwrite/client'
 
 export function GradescopeSyncSection() {
   const { user } = useAuth()
@@ -54,9 +55,15 @@ export function GradescopeSyncSection() {
     clearError()
 
     try {
+      // Get JWT for auth
+      const { jwt } = await account.createJWT()
+      
       const response = await fetch('/api/gradescope/connect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`
+        },
         body: JSON.stringify({ email, password })
       })
 
@@ -78,8 +85,14 @@ export function GradescopeSyncSection() {
     }
   }
 
-  const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect from Gradescope? Your synced assignments will remain.')) {
+  cons// Get JWT for auth
+      const { jwt } = await account.createJWT()
+
+      const response = await fetch('/api/gradescope/disconnect', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${jwt}`
+        }you sure you want to disconnect from Gradescope? Your synced assignments will remain.')) {
       return
     }
 

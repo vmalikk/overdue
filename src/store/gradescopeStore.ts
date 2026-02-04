@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { GradescopeConfig, GradescopeConflict, ConflictResolution } from '@/types/gradescope'
+import { account } from '@/lib/appwrite/client'
 
 export enum GradescopeStatus {
   IDLE = 'idle',
@@ -148,7 +149,18 @@ export const useGradescopeStore = create<GradescopeStore>()(
       checkStatus: async () => {
         try {
           set({ isLoading: true })
-          const response = await fetch('/api/gradescope/status')
+          
+          let headers: Record<string, string> = {}
+          try {
+            const { jwt } = await account.createJWT()
+            headers['Authorization'] = `Bearer ${jwt}`
+          } catch (e) {
+            // If user isn't logged in, this fails. That's fine, request will fail with 401.
+          }
+
+          const response = await fetch('/api/gradescope/status', {
+            headers
+          })
           const data = await response.json()
 
           if (data.connected) {

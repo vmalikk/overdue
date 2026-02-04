@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/appwrite/server'
 import { StatusResponse, GradescopeUserPrefs } from '@/types/gradescope'
 
-export async function GET(): Promise<NextResponse<StatusResponse>> {
+export async function GET(request: NextRequest): Promise<NextResponse<StatusResponse>> {
   try {
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(request)
     if (!user) {
       return NextResponse.json(
         { connected: false },
