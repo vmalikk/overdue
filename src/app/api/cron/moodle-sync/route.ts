@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Client, Databases, Users, Query, ID } from 'node-appwrite';
-import { createAdminClient } from '@/lib/appwrite/config';
-import { decrypt } from '@/lib/utils/encryption';
-import { normalize } from '@/lib/utils/string';
+import { Query, ID } from 'node-appwrite';
+import { createAdminClient } from '@/lib/appwrite/server';
+import { decryptData } from '@/lib/moodle/encryption';
+
+const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // Reusing Moodle fetch logic (should ideally be extracted to a lib service)
 async function fetchMoodleAssignments(url: string, token: string, userid: number) {
@@ -106,37 +107,22 @@ export async function GET(req: NextRequest) {
             // Check preferences for Moodle connection
             const prefs = user.prefs as any;
             
-            if (!prefs.moodleUrl || !prefs.moodleTokenIV || !prefs.moodleTokenData) {
+            if (!prefs.moodleSessionData) {
                 continue; // Skip user
             }
 
             try {
-                const token = decrypt({
-                    iv: prefs.moodleTokenIV,
-                    encryptedData: prefs.moodleTokenData
-                });
+                const decryptedJson = decryptData(prefs.moodleSessionData);
+                const session = JSON.parse(decryptedJson);
                 
-                const url = prefs.moodleUrl;
-                const userId = prefs.moodleUserId; // Might not have stored this... check sync route
-                
-                // If we don't have stored moodleUserId, we might need to fetch it or store it during connect.
-                // Assuming we can get away without it if 'core_webservice_get_site_info' works with just token?
-                // Actually 'core_enrol_get_users_courses' NEEDS userid.
-                
-                // Let's refetch site info to be safe/get ID if missing
-                let mUserId = userId;
-                if (!mUserId) {
-                     const infoRes = await fetch(`${url}/webservice/rest/server.php?wstoken=${token}&wsfunction=core_webservice_get_site_info&moodlewsrestformat=json`);
-                     const info = await infoRes.json();
-                     if (info.userid) mUserId = info.userid;
-                }
+                const { token, url, userid } = session;
 
-                if (!mUserId) {
-                    results.push({ userId: user.$id, status: 'failed_auth' });
+                if (!token || !url || !userid) {
+                    results.push({ userId: user.$id, status: 'invalid_session_data' });
                     continue;
                 }
 
-                const assignments = await fetchMoodleAssignments(url, token, mUserId);
+                const assignments = await fetchMoodleAssignments(url, token, userid);
                 
                 // Sync to DB
                 // Need to fetch internal courses for linking
