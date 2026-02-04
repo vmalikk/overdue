@@ -446,6 +446,12 @@ export async function POST(request: NextRequest) {
     }
 
 
+    // Update last sync time in user prefs
+    await users.updatePrefs(user.$id, {
+        ...user.prefs,
+        gradescopeLastSync: new Date().toISOString()
+    });
+
     return NextResponse.json({ 
         success: true, 
         count: allGsAssignments.length,

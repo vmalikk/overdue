@@ -63,6 +63,7 @@ export function GradescopeSyncSection() {
 
       if (data.success) {
         showToast(`Synced assignments: ${data.created} new, ${data.updated} updated`, 'success')
+        setLastSync(new Date())
       } else {
         showToast(data.error || 'Failed to sync with Gradescope', 'error')
       }
