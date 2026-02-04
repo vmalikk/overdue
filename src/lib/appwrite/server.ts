@@ -17,7 +17,10 @@ export async function createSessionClient(request?: NextRequest) {
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1]
       client.setJWT(token)
-      return { account: new Account(client) }
+      return { 
+        account: new Account(client),
+        databases: new Databases(client)
+      }
     }
   }
 
@@ -27,7 +30,10 @@ export async function createSessionClient(request?: NextRequest) {
 
   if (sessionCookie?.value) {
     client.setSession(sessionCookie.value)
-    return { account: new Account(client) }
+    return { 
+      account: new Account(client),
+      databases: new Databases(client)
+    }
   }
 
   throw new Error("No session")

@@ -30,6 +30,7 @@ export function GradescopeSyncSection() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [conflictCount, setConflictCount] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // Check connection status on mount
   useEffect(() => {
@@ -44,6 +45,33 @@ export function GradescopeSyncSection() {
         .catch(console.error)
     }
   }, [config.connected, user])
+
+  const handleSync = async () => {
+    setIsSyncing(true)
+    try {
+      // Get JWT for auth
+      const { jwt } = await account.createJWT()
+      
+      const response = await fetch('/api/gradescope/sync', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${jwt}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast(`Synced assignments: ${data.created} new, ${data.updated} updated`, 'success')
+      } else {
+        showToast(data.error || 'Failed to sync with Gradescope', 'error')
+      }
+    } catch (err) {
+      showToast('An error occurred while syncing', 'error')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   const handleConnect = async () => {
     if (!email || !password) {
@@ -193,9 +221,24 @@ export function GradescopeSyncSection() {
                 <p className="font-medium text-text-primary">Connected to Gradescope</p>
                 <p className="text-sm text-text-muted">{config.email}</p>
               </div>
-              <Button onClick={handleDisconnect} variant="ghost" size="sm" className="ml-auto">
-                Disconnect
-              </Button>
+              <div className="ml-auto flex gap-2">
+                <Button onClick={handleSync} variant="secondary" size="sm" disabled={isSyncing}>
+                  {isSyncing ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Syncing...
+                    </span>
+                  ) : (
+                    'Sync Now'
+                  )}
+                </Button>
+                <Button onClick={handleDisconnect} variant="ghost" size="sm" className="text-status-red hover:text-status-red hover:bg-status-red/10">
+                  Disconnect
+                </Button>
+              </div>
             </div>
 
             {/* Sync Info */}
