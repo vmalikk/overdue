@@ -85,20 +85,20 @@ export function GradescopeSyncSection() {
     }
   }
 
-  cons// Get JWT for auth
+  const handleDisconnect = async () => {
+    if (!confirm('Are you sure you want to disconnect from Gradescope? Your synced assignments will remain.')) {
+      return
+    }
+
+    try {
+      // Get JWT for auth
       const { jwt } = await account.createJWT()
 
       const response = await fetch('/api/gradescope/disconnect', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${jwt}`
-        }you sure you want to disconnect from Gradescope? Your synced assignments will remain.')) {
-      return
-    }
-
-    try {
-      const response = await fetch('/api/gradescope/disconnect', {
-        method: 'POST'
+        }
       })
 
       const data = await response.json()
