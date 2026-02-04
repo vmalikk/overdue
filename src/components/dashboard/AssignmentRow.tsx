@@ -28,9 +28,18 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
   const isCompleted = assignment.status === 'completed'
   
   const isGradescope = assignment.source === 'gradescope' && assignment.gradescopeId && assignment.gradescopeCourseId
-  const gradescopeUrl = isGradescope 
-    ? `https://www.gradescope.com/courses/${assignment.gradescopeCourseId}/assignments/${assignment.gradescopeId}` 
-    : null
+  
+  // Logic for Gradescope Link:
+  // 1. If ID starts with 'manual-', it's likely scraper missed the link. Use Course URL.
+  // 2. Otherwise use the standard Assignment URL.
+  let gradescopeUrl: string | null = null;
+  if (isGradescope) {
+      if (assignment.gradescopeId!.startsWith('manual-')) {
+          gradescopeUrl = `https://www.gradescope.com/courses/${assignment.gradescopeCourseId}`;
+      } else {
+          gradescopeUrl = `https://www.gradescope.com/courses/${assignment.gradescopeCourseId}/assignments/${assignment.gradescopeId}`;
+      }
+  }
 
   const handleTitleEdit = async () => {
     if (editedTitle.trim() && editedTitle !== assignment.title) {

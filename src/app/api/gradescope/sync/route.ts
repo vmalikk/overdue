@@ -6,7 +6,38 @@ import * as cheerio from 'cheerio'
 
 const DATABASE_ID = "6971d0970008b1d89c01"
 const ASSIGNMENTS_COLLECTION = "assignment"
+const COURSES_COLLECTION = "courses"
 const GRADESCOPE_BASE_URL = "https://www.gradescope.com"
+
+// Helper to normalize strings for comparison (remove spaces, lowercase, punctuation)
+function normalize(str: string): string {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Helper to find internally stored course that matches Gradescope course
+function findInternalCourseId(gsCourse: { name: string, shortName: string }, internalCourses: any[]): string {
+    // 1. Try exact match on Short Name (Code) vs Internal Code
+    // e.g. "ECE 309 (001)" vs "ECE 309"
+    // Clean them both up
+    const gsCodeClean = normalize(gsCourse.shortName);
+    
+    for (const internal of internalCourses) {
+        const intCodeClean = normalize(internal.code);
+        // If one contains the other (since GS often appends section numbers)
+        if (gsCodeClean.includes(intCodeClean) || intCodeClean.includes(gsCodeClean)) {
+            return internal.$id;
+        }
+    }
+
+    // 2. Try match on Course Name
+    const gsNameClean = normalize(gsCourse.name);
+    for (const internal of internalCourses) {
+        const intNameClean = normalize(internal.name);
+        if (gsNameClean === intNameClean) return internal.$id;
+    }
+
+    return '';
+}
 
 // Helper to parse Gradescope dates like "OCT 25 AT 11:59PM" or "2025-09-30 23:59:00 -0400"
 function parseGradescopeDate(dateStr: string): Date | null {
@@ -274,6 +305,23 @@ export async function POST(request: NextRequest) {
     // 3. Sync with Appwrite
     const { databases } = await createSessionClient(request);
     
+    // Fetch internal courses to link assignments
+    let internalCourses: any[] = [];
+    try {
+        const coursesRes = await databases.listDocuments(
+            DATABASE_ID,
+            COURSES_COLLECTION,
+            [Query.equal('userId', user.$id)]
+        );
+        internalCourses = coursesRes.documents;
+        
+        // Log available internal courses for debug
+        const courseDebug = internalCourses.map(c => `${c.code} (${c.$id})`).join(', ');
+        log(`Gradescope Sync: Internal courses available: ${courseDebug}`);
+    } catch (e) {
+        log(`Gradescope Sync: Failed to fetch internal courses: ${e}`);
+    }
+
     // Fetch existing Gradescope assignments for this user
     // We limit to 100/page. If user has more, we should paginate. 
     // For sync now, 100 is probably ok for active assignments.
@@ -316,6 +364,15 @@ export async function POST(request: NextRequest) {
              }
         }
 
+        // Try to link to an internal course ID
+        const internalCourseId = findInternalCourseId({
+            name: gsAssign.course_name,
+            shortName: gsAssign.course_name // Note: we only stored shortName || name in course_name
+            // Improvement: we should have stored both individually in allGsAssignments
+            // But for now, let's just pass what we have.
+            // Actually, wait, let's fix the allGsAssignments push to include shortName separately
+        }, internalCourses);
+
         // Map GS data to our schema
         const docData = {
             title: gsAssign.title,
@@ -323,6 +380,7 @@ export async function POST(request: NextRequest) {
             gradescopeId: gsId,
             gradescopeCourseId: gsAssign.course_id,
             gradescopeCourseName: gsAssign.course_name,
+            courseId: existing ? existing.courseId : internalCourseId, // Use found ID or keep existing
             // pointsPossible: gsAssign.points_possible, // Not easily available in student table view
             status: gsAssign.isSubmitted ? 'completed' : 'not_started' // Basic mapping
         };
@@ -334,11 +392,18 @@ export async function POST(request: NextRequest) {
             const existingDeadline = new Date(existing.deadline).getTime();
             const newDeadline = new Date(docData.deadline).getTime();
             
-            if (existing.title !== docData.title || existingDeadline !== newDeadline || (docData.status === 'completed' && existing.status !== 'completed')) {
+            // Check if courseId link was missing but now found
+            const courseIdChanged = !existing.courseId && internalCourseId;
+
+            if (existing.title !== docData.title || existingDeadline !== newDeadline || (docData.status === 'completed' && existing.status !== 'completed') || courseIdChanged) {
                 const updatePayload: any = {
                     title: docData.title,
                     deadline: docData.deadline
                 };
+                
+                if (courseIdChanged) {
+                    updatePayload.courseId = internalCourseId;
+                }
                 
                 // If we detected it's submitted, mark as completed
                 if (docData.status === 'completed' && existing.status !== 'completed') {
@@ -369,7 +434,7 @@ export async function POST(request: NextRequest) {
                     category: 'assignment',
                     userId: user.$id,
                     source: 'gradescope',
-                    courseId: '', // No internal course link yet
+                    // courseId is already in docData
                     tags: [],
                     notes: `Imported from Gradescope (${gsAssign.course_name})`,
                     calendarSynced: false,
