@@ -8,20 +8,24 @@ const DATABASE_ID = "6971d0970008b1d89c01"
 const ASSIGNMENTS_COLLECTION = "assignment"
 const GRADESCOPE_BASE_URL = "https://www.gradescope.com"
 
-// Helper to parse Gradescope dates like "OCT 25 AT 11:59PM"
+// Helper to parse Gradescope dates like "OCT 25 AT 11:59PM" or "2025-09-30 23:59:00 -0400"
 function parseGradescopeDate(dateStr: string): Date | null {
     try {
         if (!dateStr) return null;
+        
+        // 1. Try parsing exact timestamp first (e.g. "2025-09-30 23:59:00 -0400")
+        const directDate = new Date(dateStr);
+        if (!isNaN(directDate.getTime())) {
+            return directDate;
+        }
+
+        // 2. Fallback to "OCT 25 AT..." format
         // Clean string: remove "Late Due Date:", strip whitespace
         let clean = dateStr.replace(/Late Due Date:/i, '').trim();
         // Remove "AT" to make it "OCT 25 11:59PM"
         clean = clean.replace(/\s+AT\s+/i, ' ');
         
-        // Append current year since Gradescope omits it
-        // We'll simplisticly use current year. 
-        // Improvement: if month is > current month + 6, maybe last year? 
-        // For now, assume current year or next year if month passed? 
-        // Actually, just try current year.
+        // Append current year since Gradescope (text format) omits it
         const currentYear = new Date().getFullYear();
         const date = new Date(`${clean} ${currentYear}`);
         
@@ -158,57 +162,74 @@ export async function POST(request: NextRequest) {
             
             if (table.length > 0) {
                  table.find('tbody tr').each((i, tr) => {
-                     const cells = $c(tr).find('td');
+                     // Include 'th' to capture the assignment name column if it's a header cell
+                     const cells = $c(tr).find('th, td');
                      if (cells.length === 0) return;
 
-                     // DEBUG: Log all columns for the first row to determine where the Due Date is
+                     // DEBUG: Log all columns to understand structure
                      if (i === 0) {
                          const rowDebug: string[] = [];
                          cells.each((idx: number, c: any) => {
-                            rowDebug.push(`Col ${idx}: "${$c(c).text().trim()}"`);
+                            rowDebug.push(`Col ${idx} [${c.tagName}]: "${$c(c).text().trim()}"`);
                          });
                          log(`Gradescope Sync: First Row Structure: ${rowDebug.join(' | ')}`);
                      }
                      
-                     // Col 0: Name (contains link)
-                     const nameCell = $c(cells[0]);
-                     // The title might contain "Submitted" or "Late" text if we just grab .text()
-                     // Better to find the anchor tag for the title
-                     const titleAnchor = nameCell.find('a');
+                     // Helper to find the name from the first few columns
                      let title = "";
                      let assignmentId = 'manual-' + i;
+                     let nameCellIndex = 0;
+
+                     // Strategy: The name is usually in the first column (index 0)
+                     const potentialNameCell = $c(cells[0]);
+                     const titleAnchor = potentialNameCell.find('a');
                      
                      if (titleAnchor.length > 0) {
                         title = titleAnchor.text().trim();
                         const linkHref = titleAnchor.attr('href');
                         if (linkHref) assignmentId = linkHref.split('/').pop() || assignmentId;
                      } else {
-                        // Fallback if no anchor (rare)
-                        title = nameCell.text().trim();
+                        // Fallback: Check if 2nd column has an anchor if the 1st was empty or weird
+                        // But usually it's the 1st.
+                        title = potentialNameCell.text().trim();
                      }
 
                      const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-                     // Determine columns based on table size
-                     // Standard: Name (0), Score (1), Status (2), Released (3), Due (4)
-                     // Some views: Name (0), Status (1), Released (2), Due (3) ??
+                     // Identify Due Date column
+                     // Based on logs: 
+                     // 4 'td' columns found previously -> Last column (index 3) was proper ISO date.
+                     // With 'th' added, we expect 5 columns. Last column (index 4) should be Due Date.
+                     // We look for the last column that parses as a valid date.
                      
                      let status = '';
                      let dueDateStr = '';
+                     
+                     // Attempt to grab status from column 1 or 2
+                     if (cells.length >= 2) {
+                        // If cell 0 is Name, cell 1 is often Score or Status
+                        status = $c(cells[1]).text().trim();
+                     }
 
-                     if (cells.length >= 5) {
-                         status = $c(cells[2]).text().trim();
-                         dueDateStr = $c(cells[4]).text().trim();
-                     } else if (cells.length === 4) {
-                         // Fallback for 4-col tables
-                         status = $c(cells[1]).text().trim();
-                         dueDateStr = $c(cells[3]).text().trim();
-                     } else if (cells.length === 3) {
-                         // Fallback for 3-col tables (Name, Score, Status)? No due date?
-                         status = $c(cells[2]).text().trim();
-                         // Maybe due date is in Name cell?
+                     // Look for date in the last columns
+                     // We iterate backwards to find a valid ISO-like string or date
+                     for (let j = cells.length - 1; j >= 1; j--) {
+                         const txt = $c(cells[j]).text().trim();
+                         // Check if it looks like the ISO format date we saw: "2026-02-01 23:59:00 -0500"
+                         if (txt.match(/^\d{4}-\d{2}-\d{2}/)) {
+                             dueDateStr = txt;
+                             break;
+                         }
                      }
                      
+                     // If no ISO date found, try the text column (usually displayed "Oct 25...")
+                     // This is risky, but fallback.
+                     if (!dueDateStr && cells.length >= 3) {
+                         // Usually column before the hidden ones
+                         // if 5 cols: 0=Name, 1=Score, 2=TextDate, 3=Hidden, 4=Hidden
+                         // Try cells[2]?
+                     }
+
                      log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}" (Cols: ${cells.length})`);
 
                      const dueDate = parseGradescopeDate(dueDateStr);
