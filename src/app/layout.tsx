@@ -7,6 +7,11 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Overdue - Assignment Tracker',
   description: 'Track your academic assignments with intelligent color-coding and AI-powered features',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  }
 }
 
 export default function RootLayout({
