@@ -2,10 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, createSessionClient } from '@/lib/appwrite/server'
 import { decryptToken } from '@/lib/gradescope/encryption'
 import { ID, Query } from 'node-appwrite'
+import * as cheerio from 'cheerio'
 
 const DATABASE_ID = "6971d0970008b1d89c01"
 const ASSIGNMENTS_COLLECTION = "assignment"
 const GRADESCOPE_BASE_URL = "https://www.gradescope.com"
+
+// Helper to parse Gradescope dates like "OCT 25 AT 11:59PM"
+function parseGradescopeDate(dateStr: string): Date | null {
+    try {
+        if (!dateStr) return null;
+        // Clean string: remove "Late Due Date:", strip whitespace
+        let clean = dateStr.replace(/Late Due Date:/i, '').trim();
+        // Remove "AT" to make it "OCT 25 11:59PM"
+        clean = clean.replace(/\s+AT\s+/i, ' ');
+        
+        // Append current year since Gradescope omits it
+        // We'll simplisticly use current year. 
+        // Improvement: if month is > current month + 6, maybe last year? 
+        // For now, assume current year or next year if month passed? 
+        // Actually, just try current year.
+        const currentYear = new Date().getFullYear();
+        const date = new Date(`${clean} ${currentYear}`);
+        
+        if (isNaN(date.getTime())) return null;
+        return date;
+    } catch (e) {
+        return null;
+    }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,45 +51,110 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Failed to decrypt session token' }, { status: 500 })
     }
 
-    // 1. Fetch Courses
-    const coursesResponse = await fetch(`${GRADESCOPE_BASE_URL}/api/v1/courses`, {
-        headers: {
-            'Cookie': `_gradescope_session=${sessionToken}`
+    const headers = {
+        'Cookie': `_gradescope_session=${sessionToken}`,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    };
+
+    // 1. Fetch Account (Dashboard) to Scrape Courses
+    // The API /api/v1/courses does not seem to reliably work for students
+    console.log('Gradescope Sync: Fetching account page...');
+    const accountRes = await fetch(`${GRADESCOPE_BASE_URL}/account`, { headers });
+
+    if (!accountRes.ok) {
+        if (accountRes.status === 401 || accountRes.status === 403 || accountRes.url.includes('/login')) {
+             return NextResponse.json({ success: false, error: 'Gradescope session expired. Please reconnect.' }, { status: 401 })
+        }
+        console.error(`Gradescope Sync: Failed to fetch account page. Status: ${accountRes.status}`);
+        return NextResponse.json({ success: false, error: 'Failed to fetch dashboard from Gradescope' }, { status: 500 })
+    }
+
+    const accountHtml = await accountRes.text();
+    const $ = cheerio.load(accountHtml);
+    
+    interface GSCourse {
+        id: string;
+        name: string;
+        shortName: string;
+    }
+    
+    const courses: GSCourse[] = [];
+    
+    // Scrape courses
+    // Look for links /courses/123 inside the course list
+    $('.courseList--term a').each((_, el) => {
+        const href = $(el).attr('href');
+        if (href && href.startsWith('/courses/')) {
+            const id = href.split('/')[2];
+            const shortName = $(el).find('.courseBox--shortname').text().trim();
+            const name = $(el).find('.courseBox--name').text().trim();
+            
+            if (id) {
+                courses.push({ id, name, shortName });
+            }
         }
     });
 
-    if (!coursesResponse.ok) {
-        if (coursesResponse.status === 401 || coursesResponse.status === 403) {
-             return NextResponse.json({ success: false, error: 'Gradescope session expired. Please reconnect.' }, { status: 401 })
-        }
-        return NextResponse.json({ success: false, error: 'Failed to fetch courses from Gradescope' }, { status: 500 })
-    }
-
-    const coursesData = await coursesResponse.json();
-    const courses = coursesData.courses || [];
+    console.log(`Gradescope Sync: Found ${courses.length} courses`);
     
     // 2. Fetch Assignments for all courses
     let allGsAssignments: any[] = [];
     
+    // Limit concurrency to avoid getting blocked
+    // For now, sequential is safer
     for (const course of courses) {
-        // We can fetch in parallel but let's be nice to the API
-        const assignResponse = await fetch(`${GRADESCOPE_BASE_URL}/courses/${course.course_id}/assignments`, {
-            headers: {
-                'Cookie': `_gradescope_session=${sessionToken}`
-            }
-        });
+        console.log(`Gradescope Sync: Fetching course ${course.id} (${course.shortName})`);
+        const courseRes = await fetch(`${GRADESCOPE_BASE_URL}/courses/${course.id}`, { headers });
         
-        if (assignResponse.ok) {
-            const assignData = await assignResponse.json();
-            const assignments = assignData.assignments || [];
-            // Attach course info to assignment object for easier processing
-            assignments.forEach((a: any) => {
-                a.course_id = course.course_id;
-                a.course_name = course.name;
-            });
-            allGsAssignments = allGsAssignments.concat(assignments);
+        if (courseRes.ok) {
+            const courseHtml = await courseRes.text();
+            const $c = cheerio.load(courseHtml);
+            
+            // Parse Student Table
+            const table = $c('#assignments-student-table');
+            if (table.length > 0) {
+                 table.find('tbody tr').each((_, tr) => {
+                     const cells = $c(tr).find('td');
+                     if (cells.length === 0) return;
+                     
+                     // Col 0: Name (contains link)
+                     const nameCell = $(cells[0]);
+                     const title = nameCell.text().trim();
+                     const linkHref = nameCell.find('a').attr('href');
+                     const assignmentId = linkHref ? linkHref.split('/').pop() : null;
+                     
+                     if (!assignmentId) return; // Skip if no ID
+
+                     // Col 2: Status
+                     const status = $(cells[2]).text().trim();
+                     
+                     // Col 4: Due Date
+                     let dueDateStr = '';
+                     if (cells.length >= 5) {
+                         dueDateStr = $(cells[4]).text().trim(); // "OCT 25 AT 11:59PM"
+                     }
+                     
+                     const dueDate = parseGradescopeDate(dueDateStr);
+                     
+                     // Only add if we have a due date, usually
+                     if (dueDate) {
+                         allGsAssignments.push({
+                             id: assignmentId,
+                             title: title,
+                             course_id: course.id,
+                             course_name: course.shortName || course.name,
+                             due_date: dueDate,
+                             status: status
+                         });
+                     }
+                 });
+            }
+        } else {
+             console.error(`Failed to fetch course ${course.id}: ${courseRes.status}`);
         }
     }
+
+    console.log(`Gradescope Sync: Found ${allGsAssignments.length} assignments total`);
 
     // 3. Sync with Appwrite
     const { databases } = await createSessionClient(request);
@@ -92,35 +182,53 @@ export async function POST(request: NextRequest) {
         // Map GS data to our schema
         const docData = {
             title: gsAssign.title,
-            deadline: gsAssign.due_date || gsAssign.submission_window_end_date, // "2023-10-10T..."
+            deadline: gsAssign.due_date.toISOString(), 
             gradescopeId: gsId,
             gradescopeCourseId: gsAssign.course_id,
             gradescopeCourseName: gsAssign.course_name,
-            pointsPossible: gsAssign.points_possible,
-            // Only set these on creation or if we want to overwrite user changes? 
-            // Usually valid to overwrite title/deadline if source is GS.
+            // pointsPossible: gsAssign.points_possible, // Not easily available in student table view
+            status: gsAssign.status === 'Submitted' ? 'completed' : 'not_started' // Basic mapping
         };
 
         if (existing) {
             // Update if changed
-            if (existing.title !== docData.title || existing.deadline !== docData.deadline) {
+            // Only update if deadline changed? Or if status changed?
+            // Let's update title/deadline/status
+            const existingDeadline = new Date(existing.deadline).getTime();
+            const newDeadline = new Date(docData.deadline).getTime();
+            
+            if (existing.title !== docData.title || existingDeadline !== newDeadline || (docData.status === 'completed' && existing.status !== 'completed')) {
+                const updatePayload: any = {
+                    title: docData.title,
+                    deadline: docData.deadline
+                };
+                
+                // If we detected it's submitted, mark as completed
+                if (docData.status === 'completed' && existing.status !== 'completed') {
+                    updatePayload.status = 'completed';
+                    updatePayload.completedAt = new Date().toISOString();
+                }
+
                 await databases.updateDocument(
                     DATABASE_ID,
                     ASSIGNMENTS_COLLECTION,
                     existing.$id,
-                    docData
+                    updatePayload
                 );
                 updatedCount++;
             }
         } else {
             // Create New
+            // If it's already past due and not submitted, maybe ignore?
+            // Or import as overdue.
+            
             await databases.createDocument(
                 DATABASE_ID,
                 ASSIGNMENTS_COLLECTION,
                 ID.unique(),
                 {
                     ...docData,
-                    status: 'not_started',
+                    status: docData.status === 'completed' ? 'completed' : 'not_started',
                     category: 'assignment',
                     userId: user.$id,
                     source: 'gradescope',
@@ -130,18 +238,13 @@ export async function POST(request: NextRequest) {
                     calendarSynced: false,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
+                    completedAt: docData.status === 'completed' ? new Date().toISOString() : null
                 }
             );
             createdCount++;
         }
     }
 
-    // Update last sync time
-    // We need admin client to update prefs? 
-    // Actually user can usually update their own prefs if configured, but let's see. 
-    // The previous code used admin. But `users` service is admin only usually.
-    // However, we can just return success and let the UI update local state or ignore.
-    // Ideally we update the prefs on server.
 
     return NextResponse.json({ 
         success: true, 
