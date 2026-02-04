@@ -242,12 +242,18 @@ export function MoodleSyncSection() {
                 placeholder="Paste key here..."
                 className="w-full px-3 py-2 bg-surface border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-priority-medium font-mono"
               />
-              <p className="text-xs text-text-muted mt-2">
-                1. Go to <a href={`${url.replace(/\/$/, '')}/user/managetoken.php`} target="_blank" rel="noopener noreferrer" className="text-priority-medium hover:underline">Security Keys</a> in Moodle (under Preferences).
+              <p className="text-xs text-text-muted mt-2 space-y-1">
+                <strong>How to get your token:</strong>
                 <br/>
-                2. Copy the key for <strong>Moodle Mobile web service</strong>.
+                1. Go to <a href={`${url.replace(/\/$/, '')}/user/preferences.php`} target="_blank" rel="noopener noreferrer" className="text-priority-medium hover:underline">User Preferences</a> in Moodle (Profile → Preferences).
                 <br/>
-                (If missing, click "Generate" or contact support).
+                2. Click on <strong>Security keys</strong>.
+                <br/>
+                3. Look for the service named <strong>Moodle mobile web service</strong>.
+                <br/>
+                4. If you don't see a token value, click <strong>Reset</strong> next to it. This will generate and display the new token.
+                <br/>
+                5. Copy that token (e.g. <code>939aa...</code>) and paste it above.
               </p>
             </div>
         ) : (
