@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
         const COURSES_COLLECTION = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_COURSES_ID!;
 
         // 1. List all users (paginate if needed, assuming < 100 for now or loop)
-        const allUsers = await users.list(100);
+        const allUsers = await users.list([ Query.limit(100) ]);
         
         let results = [];
 
