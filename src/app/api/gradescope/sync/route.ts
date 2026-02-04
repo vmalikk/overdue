@@ -340,8 +340,6 @@ export async function POST(request: NextRequest) {
                     tags: [],
                     notes: `Imported from Gradescope (${gsAssign.course_name})`,
                     calendarSynced: false,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
                     completedAt: docData.status === 'completed' ? new Date().toISOString() : null
                 }
             );
