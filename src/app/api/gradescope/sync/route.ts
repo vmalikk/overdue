@@ -160,27 +160,56 @@ export async function POST(request: NextRequest) {
                  table.find('tbody tr').each((i, tr) => {
                      const cells = $c(tr).find('td');
                      if (cells.length === 0) return;
+
+                     // DEBUG: Log all columns for the first row to determine where the Due Date is
+                     if (i === 0) {
+                         const rowDebug: string[] = [];
+                         cells.each((idx: number, c: any) => {
+                            rowDebug.push(`Col ${idx}: "${$c(c).text().trim()}"`);
+                         });
+                         log(`Gradescope Sync: First Row Structure: ${rowDebug.join(' | ')}`);
+                     }
                      
                      // Col 0: Name (contains link)
                      const nameCell = $c(cells[0]);
-                     const title = nameCell.text().trim(); // Note: This might include "Submitted" text if not careful? 
-                     // Usually nameCell has an anchor.
-                     const linkHref = nameCell.find('a').attr('href');
-                     const assignmentId = linkHref ? linkHref.split('/').pop() : 'manual-' + i;
+                     // The title might contain "Submitted" or "Late" text if we just grab .text()
+                     // Better to find the anchor tag for the title
+                     const titleAnchor = nameCell.find('a');
+                     let title = "";
+                     let assignmentId = 'manual-' + i;
                      
-                     // Helper to clean title logic if needed
+                     if (titleAnchor.length > 0) {
+                        title = titleAnchor.text().trim();
+                        const linkHref = titleAnchor.attr('href');
+                        if (linkHref) assignmentId = linkHref.split('/').pop() || assignmentId;
+                     } else {
+                        // Fallback if no anchor (rare)
+                        title = nameCell.text().trim();
+                     }
+
                      const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-                     // Col 2: Status
-                     const status = $c(cells[2]).text().trim();
+                     // Determine columns based on table size
+                     // Standard: Name (0), Score (1), Status (2), Released (3), Due (4)
+                     // Some views: Name (0), Status (1), Released (2), Due (3) ??
                      
-                     // Col 4: Due Date
+                     let status = '';
                      let dueDateStr = '';
+
                      if (cells.length >= 5) {
-                         dueDateStr = $c(cells[4]).text().trim(); // "OCT 25 AT 11:59PM"
+                         status = $c(cells[2]).text().trim();
+                         dueDateStr = $c(cells[4]).text().trim();
+                     } else if (cells.length === 4) {
+                         // Fallback for 4-col tables
+                         status = $c(cells[1]).text().trim();
+                         dueDateStr = $c(cells[3]).text().trim();
+                     } else if (cells.length === 3) {
+                         // Fallback for 3-col tables (Name, Score, Status)? No due date?
+                         status = $c(cells[2]).text().trim();
+                         // Maybe due date is in Name cell?
                      }
                      
-                     log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}"`);
+                     log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}" (Cols: ${cells.length})`);
 
                      const dueDate = parseGradescopeDate(dueDateStr);
                      
