@@ -232,17 +232,15 @@ export async function POST(request: NextRequest) {
 
                      log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}" (Cols: ${cells.length})`);
 
-                     // Filter: Ignore submitted or graded assignments
+                     // Determine if submitted/graded for status mapping
                      // Checks for "Submitted" text or "Score / Max" pattern (e.g. "10.0 / 10.0")
                      const isSubmittedOrGraded = 
                         status.toLowerCase().includes('submitted') || 
                         status.toLowerCase().includes('graded') ||
                         /\d+\.?\d*\s*\/\s*\d+\.?\d*/.test(status);
 
-                     if (isSubmittedOrGraded) {
-                         log(`Gradescope Sync: Skipped "${cleanTitle}" because it is submitted/graded (Status: "${status}")`);
-                         return; // Continue to next iteration
-                     }
+                     // We do NOT filter here anymore so we can update existing assignments
+                     // Filtering happens during the sync phase
 
                      const dueDate = parseGradescopeDate(dueDateStr);
                      
@@ -254,7 +252,8 @@ export async function POST(request: NextRequest) {
                              course_id: course.id,
                              course_name: course.shortName || course.name,
                              due_date: dueDate,
-                             status: status
+                             status: status,
+                             isSubmitted: isSubmittedOrGraded
                          });
                      } else {
                          log('Gradescope Sync: Skipped due to invalid date parsing');
@@ -297,14 +296,26 @@ export async function POST(request: NextRequest) {
     const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     for (const gsAssign of allGsAssignments) {
-        // Skip if due date is strictly before today (yesterday or older)
-        if (gsAssign.due_date < todayMidnight) {
-            continue;
-        }
-
         const gsId = gsAssign.id.toString(); // Ensure string
         const existing = existingDocs.documents.find((d: any) => d.gradescopeId === gsId);
         
+        // FILTERING LOGIC:
+        // 1. If assignment already exists in our DB, we KEEP it (and update it).
+        // 2. If it is NEW, we apply filters:
+        //    - Must be due today or in the future
+        //    - Must NOT be submitted/graded
+        if (!existing) {
+             // Check Date: Skip if due date is strictly before today (yesterday or older)
+             if (gsAssign.due_date < todayMidnight) {
+                 continue;
+             }
+             
+             // Check Status: Skip if already submitted/graded
+             if (gsAssign.isSubmitted) {
+                 continue;
+             }
+        }
+
         // Map GS data to our schema
         const docData = {
             title: gsAssign.title,
@@ -313,7 +324,7 @@ export async function POST(request: NextRequest) {
             gradescopeCourseId: gsAssign.course_id,
             gradescopeCourseName: gsAssign.course_name,
             // pointsPossible: gsAssign.points_possible, // Not easily available in student table view
-            status: gsAssign.status === 'Submitted' ? 'completed' : 'not_started' // Basic mapping
+            status: gsAssign.isSubmitted ? 'completed' : 'not_started' // Basic mapping
         };
 
         if (existing) {
