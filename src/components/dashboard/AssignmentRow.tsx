@@ -41,6 +41,11 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
       }
   }
 
+  const isMoodle = assignment.source === 'moodle' && assignment.gradescopeId && assignment.gradescopeCourseName
+  const moodleUrl = isMoodle
+    ? `${assignment.gradescopeCourseName}/mod/assign/view.php?id=${assignment.gradescopeId}`
+    : null
+
   const handleTitleEdit = async () => {
     if (editedTitle.trim() && editedTitle !== assignment.title) {
       try {
@@ -163,6 +168,19 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
                 >
                   {assignment.title} <span className="text-xs opacity-50">↗</span>
                 </a>
+              ) : moodleUrl ? (
+                <a
+                  href={moodleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className={clsx(
+                    'font-medium text-text-primary hover:text-orange-500 hover:underline',
+                    isCompleted && 'line-through'
+                  )}
+                >
+                  {assignment.title} <span className="text-xs opacity-50">↗</span>
+                </a>
               ) : (
                 <h3 className={clsx(
                   'font-medium text-text-primary',
@@ -171,16 +189,7 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
                   {assignment.title}
                 </h3>
               )}
-              <span className="text-xs text-text-muted bg-surface-hover px-1.5 py-0.5 rounded border border-border flex-shrink-0">
-                {categoryIcons[assignment.category] || '📄'} {assignment.category}
-              </span>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              {course && <CourseBadge course={course} size="sm" />}
-              <span className="text-xs text-text-muted">
-                {formatDeadline(assignment.deadline)}
-              </span>
               {/* Status dropdown for mobile */}
               <select
                 value={assignment.status}
@@ -253,6 +262,24 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
               isCompleted && 'line-through'
             )}
             title="Open in Gradescope"
+          >
+            <span className="group-hover:underline">{assignment.title}</span>
+            <span className="text-xs text-text-muted mt-1 inline-block ml-2 bg-secondary px-1.5 py-0.5 rounded border border-border">
+              {categoryIcons[assignment.category] || '📄'} {assignment.category}
+            </span>
+            <span className="ml-1 text-xs opacity-50 group-hover:opacity-100">↗</span>
+          </a>
+        ) : moodleUrl ? (
+          <a
+            href={moodleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={clsx(
+              'text-left text-text-primary font-medium block hover:text-orange-500 group',
+              isCompleted && 'line-through'
+            )}
+            title="Open in Moodle"
           >
             <span className="group-hover:underline">{assignment.title}</span>
             <span className="text-xs text-text-muted mt-1 inline-block ml-2 bg-secondary px-1.5 py-0.5 rounded border border-border">

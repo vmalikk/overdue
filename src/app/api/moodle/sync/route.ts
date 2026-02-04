@@ -158,8 +158,11 @@ export async function POST(request: NextRequest) {
 
     for (const mAssign of allMoodleAssignments) {
         const mId = mAssign.id.toString();
-        const existing = existingDocs.documents.find((d: any) => d.gradescopeId === mId); // We reuse gradescopeId field for generic 'externalId'
-        // Ideally rename `gradescopeId` to `externalId` in schema, but for now reuse.
+        const cId = mAssign.cmid.toString();
+        // Check for existing assignment by either ID (old style) or CMID (new style)
+        const existing = existingDocs.documents.find((d: any) => 
+            d.gradescopeId === mId || d.gradescopeId === cId
+        );
 
         const dueDateObj = mAssign.dueDate ? new Date(mAssign.dueDate * 1000) : null;
         
@@ -199,9 +202,9 @@ export async function POST(request: NextRequest) {
         const docData = {
             title: mAssign.title,
             deadline: dueDateObj ? dueDateObj.toISOString() : null,
-            gradescopeId: mId, // Storing moodle ID here
+            gradescopeId: mAssign.cmid.toString(), // Store CMID (Course Module ID) for link generation
             gradescopeCourseId: mAssign.courseId.toString(),
-            gradescopeCourseName: mAssign.courseName, // or Shortname
+            gradescopeCourseName: url, // Store BASE Moodle URL for link generation
             courseId: existing ? existing.courseId : internalCourseId,
             source: 'moodle',
             status: 'not_started' 
@@ -213,11 +216,14 @@ export async function POST(request: NextRequest) {
              const titleChanged = existing.title !== docData.title;
              const deadlineChanged = existingDeadline !== newDeadline;
              const courseIdChanged = !existing.courseId && internalCourseId;
+             const cmidChanged = existing.gradescopeId !== docData.gradescopeId; // If we didn't store CMID before
 
-             if (titleChanged || deadlineChanged || courseIdChanged) {
+             if (titleChanged || deadlineChanged || courseIdChanged || cmidChanged) {
                  const updates: any = {
                      title: docData.title,
-                     deadline: docData.deadline
+                     deadline: docData.deadline,
+                     gradescopeId: docData.gradescopeId, // Update detailed ID
+                     gradescopeCourseName: docData.gradescopeCourseName // Ensure URL is saved
                  }
                  if (courseIdChanged) updates.courseId = internalCourseId;
 
