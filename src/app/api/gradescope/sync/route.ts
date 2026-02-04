@@ -279,7 +279,17 @@ export async function POST(request: NextRequest) {
     let createdCount = 0;
     let updatedCount = 0;
     
+    // Filter out past assignments: Only process tasks due today or in the future
+    // We use midnight of the current day as the cutoff
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     for (const gsAssign of allGsAssignments) {
+        // Skip if due date is strictly before today (yesterday or older)
+        if (gsAssign.due_date < todayMidnight) {
+            continue;
+        }
+
         const gsId = gsAssign.id.toString(); // Ensure string
         const existing = existingDocs.documents.find((d: any) => d.gradescopeId === gsId);
         
