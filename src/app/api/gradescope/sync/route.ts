@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
     log(`Gradescope Sync: Found ${allGsAssignments.length} assignments total`);
 
     // 3. Sync with Appwrite
-    const { databases } = await createSessionClient(request);
+    const { databases, account } = await createSessionClient(request);
     
     // Fetch internal courses to link assignments
     let internalCourses: any[] = [];
@@ -447,7 +447,7 @@ export async function POST(request: NextRequest) {
 
 
     // Update last sync time in user prefs
-    await users.updatePrefs(user.$id, {
+    await account.updatePrefs({
         ...user.prefs,
         gradescopeLastSync: new Date().toISOString()
     });
