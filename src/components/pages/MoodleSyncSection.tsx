@@ -25,8 +25,10 @@ export function MoodleSyncSection() {
   } = useMoodleStore()
   const { showToast } = useUIStore()
 
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState('https://moodle-courses2527.wolfware.ncsu.edu')
   const [username, setUsername] = useState('')
+  const [token, setToken] = useState('') // Manual token support
+  const [useToken, setUseToken] = useState(true) // Default to token for robustness
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -64,8 +66,8 @@ export function MoodleSyncSection() {
   }
 
   const handleConnect = async () => {
-    if (!url || !username || !password) {
-      showToast('Please enter your Moodle URL, Username and Password', 'error')
+    if (!url || !username || (!useToken && !password) || (useToken && !token)) {
+      showToast('Please fill in all required fields', 'error')
       return
     }
 
@@ -75,13 +77,20 @@ export function MoodleSyncSection() {
     try {
       const { jwt } = await account.createJWT()
       
+      const payload: any = { url, username }
+      if (useToken) {
+          payload.token = token
+      } else {
+          payload.password = password
+      }
+      
       const response = await fetch('/api/moodle/connect', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${jwt}`
         },
-        body: JSON.stringify({ url, username, password })
+        body: JSON.stringify(payload)
       })
 
       const data = await response.json()
@@ -89,7 +98,8 @@ export function MoodleSyncSection() {
       if (data.success) {
         connectSuccess(data.url, data.username)
         showToast('Successfully connected to Moodle!', 'success')
-        setPassword('') // Clear sensitive data
+        setPassword('') 
+        setToken('')
       } else {
         connectError(data.error || 'Connection failed')
         showToast(data.error || 'Connection failed', 'error')
@@ -198,24 +208,68 @@ export function MoodleSyncSection() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-text-muted mb-1">Password</label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-priority-medium"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-            >
-              {showPassword ? 'Hide' : 'Show'}
-            </button>
-          </div>
+        {/* Auth Method Switcher */}
+        <div className="flex items-center gap-4 py-2">
+            <label className="inline-flex items-center cursor-pointer">
+                <input 
+                    type="radio" 
+                    checked={useToken} 
+                    onChange={() => setUseToken(true)}
+                    className="form-radio text-priority-medium"
+                    name="authMethod"
+                />
+                <span className="ml-2 text-sm text-text-primary">Manual Token (SSO / NCSU)</span>
+            </label>
+            <label className="inline-flex items-center cursor-pointer">
+                <input 
+                    type="radio" 
+                    checked={!useToken} 
+                    onChange={() => setUseToken(false)}
+                    className="form-radio text-priority-medium"
+                    name="authMethod"
+                />
+                <span className="ml-2 text-sm text-text-primary">Password (Standard)</span>
+            </label>
         </div>
+
+        {useToken ? (
+            <div>
+              <label className="block text-sm font-medium text-text-muted mb-1">Security Key (Token)</label>
+              <input
+                type="text"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Paste key here..."
+                className="w-full px-3 py-2 bg-surface border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-priority-medium font-mono"
+              />
+              <p className="text-xs text-text-muted mt-2">
+                1. Go to <a href={`${url.replace(/\/$/, '')}/user/managetoken.php`} target="_blank" rel="noopener noreferrer" className="text-priority-medium hover:underline">Security Keys</a> in Moodle (under Preferences).
+                <br/>
+                2. Copy the key for <strong>Moodle Mobile web service</strong>.
+                <br/>
+                (If missing, click "Generate" or contact support).
+              </p>
+            </div>
+        ) : (
+            <div>
+              <label className="block text-sm font-medium text-text-muted mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-priority-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+        )}
 
         <Button
           variant="primary"

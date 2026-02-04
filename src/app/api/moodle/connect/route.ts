@@ -9,9 +9,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { url, username, password } = await request.json()
+    const { url, username, password, token: manualToken } = await request.json()
 
-    if (!url || !username || !password) {
+    if (!url || !username || (!password && !manualToken)) {
         return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -20,35 +20,39 @@ export async function POST(request: NextRequest) {
     if (!cleanUrl.startsWith('http')) {
         cleanUrl = 'https://' + cleanUrl
     }
+    
+    let token = manualToken;
 
-    // 1. Get Token from Moodle
-    const tokenUrl = `${cleanUrl}/login/token.php`
-    const params = new URLSearchParams()
-    params.append('username', username)
-    params.append('password', password)
-    params.append('service', 'moodle_mobile_app')
+    // 1. Get Token from Moodle (If password provided)
+    if (!token && password) {
+        const tokenUrl = `${cleanUrl}/login/token.php`
+        const params = new URLSearchParams()
+        params.append('username', username)
+        params.append('password', password)
+        params.append('service', 'moodle_mobile_app')
 
-    console.log(`Connecting to Moodle at: ${tokenUrl}`)
+        console.log(`Connecting to Moodle at: ${tokenUrl}`)
 
-    const tokenRes = await fetch(tokenUrl, {
-        method: 'POST',
-        body: params
-    })
+        const tokenRes = await fetch(tokenUrl, {
+            method: 'POST',
+            body: params
+        })
 
-    if (!tokenRes.ok) {
-        return NextResponse.json({ success: false, error: `Failed to connect to Moodle (Status: ${tokenRes.status})` }, { status: 400 })
-    }
+        if (!tokenRes.ok) {
+            return NextResponse.json({ success: false, error: `Failed to connect to Moodle (Status: ${tokenRes.status})` }, { status: 400 })
+        }
 
-    const tokenData = await tokenRes.json()
+        const tokenData = await tokenRes.json()
 
-    if (tokenData.error) {
-        return NextResponse.json({ success: false, error: `Moodle Error: ${tokenData.error}` }, { status: 400 })
-    }
+        if (tokenData.error) {
+            return NextResponse.json({ success: false, error: `Moodle Error: ${tokenData.error}` }, { status: 400 })
+        }
 
-    const token = tokenData.token
+        token = tokenData.token
 
-    if (!token) {
-        return NextResponse.json({ success: false, error: 'No token received from Moodle' }, { status: 400 })
+        if (!token) {
+            return NextResponse.json({ success: false, error: 'No token received from Moodle' }, { status: 400 })
+        }
     }
     
     // 2. Get User ID (needed for fetching courses)
