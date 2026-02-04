@@ -28,9 +28,16 @@ export function Header() {
           {/* Title Section */}
           <div className="flex items-center justify-between md:block">
             <div>
-              <h1 className="text-2xl md:text-4xl font-bold text-text-primary mb-0 md:mb-1 tracking-tight">
-                Overdue
-              </h1>
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/favicon.ico" 
+                  alt="Overdue Logo" 
+                  className="w-8 h-8 md:w-10 md:h-10 rounded-sm"
+                />
+                <h1 className="text-2xl md:text-4xl font-bold text-text-primary mb-0 md:mb-1 tracking-tight">
+                  Overdue
+                </h1>
+              </div>
               <p className="text-xs md:text-sm text-text-muted hidden md:block">
                 Stay organized, stay ahead
               </p>
