@@ -22,7 +22,8 @@ export function GradescopeSyncSection() {
     connectError,
     disconnect,
     checkStatus,
-    clearError
+    clearError,
+    setLastSync
   } = useGradescopeStore()
   const { showToast } = useUIStore()
 
