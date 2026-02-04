@@ -111,50 +111,41 @@ export async function POST(request: NextRequest): Promise<NextResponse<ConnectRe
       )
     }
 
-    // Combine initial cookies with new cookies for the extraction logic
-    if (!setCookieHeader) {
-        setCookieHeader = loginResponse.headers.get('set-cookie') || '';
-    }
-
-    // Parse the session token from cookies
-    // Gradescope uses _gradescope_session cookie
-    // The response might contain multiple Set-Cookie headers.
-    // We need to look through all of them.
-    const allSetCookies = loginResponse.headers.getSetCookie();
-    let sessionToken = null;
+    // Combine initial cookies with new cookies to extract all required tokens
+    // We need _gradescope_session, signed_token, and remember_me
+    const allCookiesRaw = [
+        ...initialCookies,
+        ...loginResponse.headers.getSetCookie()
+    ];
     
-    // First check the new cookies
-    for (const cookie of allSetCookies) {
-        if (cookie.includes('_gradescope_session=')) {
-            const match = cookie.match(/_gradescope_session=([^;]+)/);
-            if (match) {
-                sessionToken = match[1];
-                break;
-            }
+    const cookiesToStore: Record<string, string> = {};
+    const targetCookies = ['_gradescope_session', 'signed_token', 'remember_me'];
+
+    allCookiesRaw.forEach(cookieStr => {
+        // cookieStr is like "name=value; Path=/; HttpOnly"
+        const parts = cookieStr.split(';');
+        const firstPart = parts[0];
+        const [name, ...valueParts] = firstPart.split('=');
+        const value = valueParts.join('='); // Rejoin in case value has =
+        
+        if (targetCookies.includes(name.trim()) && value) {
+            // Overwrite ensures we keep the latest value (authenticated session)
+             cookiesToStore[name.trim()] = value.trim();
         }
-    }
+    });
 
-    // Logic: If the login response 302s, it sets a NEW _gradescope_session which is the authenticated one.
-    // If it doesn't set one, it might be the case that the initial one is promoted? (Unlikely for rails)
-    
-    if (!sessionToken && setCookieHeader) {
-         // Fallback regex on the joined string
-         const sessionMatch = setCookieHeader.match(/_gradescope_session=([^;]+)/)
-         if (sessionMatch) sessionToken = sessionMatch[1];
-    }
-    
-    if (!sessionToken) {
-      console.error('Failed to extract _gradescope_session from cookies. detailed headers:', setCookieHeader);
-      // It's possible the login failed but we didn't catch it with the 200 check above?
+    if (!cookiesToStore['_gradescope_session']) {
+      console.error('Failed to extract _gradescope_session from cookies. Raw:', allCookiesRaw);
       return NextResponse.json(
         { success: false, error: 'Failed to extract session token from Gradescope response. Please check your credentials.' },
         { status: 500 }
       )
     }
 
-    // Encrypt the session token
-    // const sessionToken = sessionMatch[1] // Already have sessionToken
-    const encryptedToken = encryptToken(sessionToken)
+    console.log('Gradescope Connect: storage payload keys:', Object.keys(cookiesToStore));
+
+    // Encrypt the session cookies as a JSON string
+    const encryptedToken = encryptToken(JSON.stringify(cookiesToStore))
 
     // Calculate token expiry (Gradescope sessions typically last 30 days)
     const tokenExpiry = new Date()

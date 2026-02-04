@@ -44,22 +44,41 @@ export async function POST(request: NextRequest) {
     }
 
     let sessionToken: string;
+    let cookieHeader = '';
+
     try {
-        sessionToken = decryptToken(user.prefs.gradescopeSessionToken);
+        const decrypted = decryptToken(user.prefs.gradescopeSessionToken);
+        
+        // Try to parse as JSON (new format)
+        try {
+            const cookies = JSON.parse(decrypted);
+            // Construct header from object
+            cookieHeader = Object.entries(cookies)
+                .map(([k, v]) => `${k}=${v}`)
+                .join('; ');
+            sessionToken = cookies['_gradescope_session']; // For logging/fallback
+        } catch (e) {
+            // Fallback for logic where we stored just the string
+            cookieHeader = `_gradescope_session=${decrypted}`;
+            sessionToken = decrypted;
+        }
     } catch (e) {
         console.error("Failed to decrypt token", e);
         return NextResponse.json({ success: false, error: 'Failed to decrypt session token' }, { status: 500 })
     }
 
     const headers = {
-        'Cookie': `_gradescope_session=${sessionToken}`,
+        'Cookie': cookieHeader,
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
 
     // 1. Fetch Account (Dashboard) to Scrape Courses
     // The API /api/v1/courses does not seem to reliably work for students
     console.log('Gradescope Sync: Fetching account page...');
-    const accountRes = await fetch(`${GRADESCOPE_BASE_URL}/account`, { headers });
+    const accountRes = await fetch(`${GRADESCOPE_BASE_URL}/account`, { 
+        headers: headers,
+        redirect: 'follow' 
+    });
 
     if (!accountRes.ok) {
         if (accountRes.status === 401 || accountRes.status === 403 || accountRes.url.includes('/login')) {
