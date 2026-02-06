@@ -20,8 +20,11 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
     const { updateCourse } = useCourseStore()
     const { showToast } = useUIStore()
 
+    // State for view navigation
+    const [activeCategory, setActiveCategory] = useState<string | null>(null)
+
     // Local state for the "Add Grade" form
-    const [addingToCategory, setAddingToCategory] = useState<string | null>(null)
+    const [isAddingGrade, setIsAddingGrade] = useState(false)
     const [newItemName, setNewItemName] = useState('')
     const [newItemScore, setNewItemScore] = useState('')
     const [newItemTotal, setNewItemTotal] = useState('100')
@@ -101,18 +104,18 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
     }
 
     const startAddGrade = (category: string) => {
-        setAddingToCategory(category)
+        setIsAddingGrade(true)
         setNewItemName('')
         setNewItemScore('')
         setNewItemTotal('100')
     }
 
     const saveGrade = async () => {
-        if (!addingToCategory || !newItemName || !newItemScore) return
+        if (!activeCategory || !newItemName || !newItemScore) return
 
         const newItem: GradedItem = {
             id: generateId(),
-            category: addingToCategory,
+            category: activeCategory,
             name: newItemName,
             score: Number(newItemScore),
             total: Number(newItemTotal) || 100
@@ -121,7 +124,7 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
         const currentItems = course.gradedItems || []
         await updateCourse(course.id, { gradedItems: [...currentItems, newItem] })
         
-        setAddingToCategory(null)
+        setIsAddingGrade(false)
         showToast('Grade added', 'success')
     }
     
@@ -249,86 +252,158 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                                 <p>No grading categories defined.</p>
                                 <Button variant="ghost" className="text-primary hover:underline" onClick={() => setIsEditingWeights(true)}>Set up grading scheme</Button>
                             </div>
+                        ) : activeCategory ? (
+                             // CATEGORY DETAIL VIEW
+                             <div className="animate-in fade-in slide-in-from-right-4 duration-200">
+                                <Button variant="ghost" size="sm" onClick={() => setActiveCategory(null)} className="mb-4 pl-0 hover:bg-transparent hover:text-primary">
+                                    ← Back to Overview
+                                </Button>
+                                
+                                {(() => {
+                                    const gw = course.gradeWeights.find(w => w.category === activeCategory)
+                                    if (!gw) return null;
+                                    
+                                    const catGrade = calculateCategoryGrade(gw.category)
+                                    const items = course.gradedItems?.filter(i => i.category === gw.category) || []
+
+                                    return (
+                                        <div className="bg-surface border border-border rounded-xl overflow-hidden flex flex-col">
+                                            <div className="p-6 bg-surface-hover border-b border-border flex justify-between items-center">
+                                                <div>
+                                                    <h4 className="text-2xl font-bold text-text-primary">{gw.category}</h4>
+                                                    <span className="text-sm text-text-muted font-mono">{gw.weight}% of total grade</span>
+                                                </div>
+                                                <div className="text-3xl font-bold text-text-primary">
+                                                    {catGrade !== null ? `${catGrade.toFixed(1)}%` : '-'}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="p-6 flex-1 space-y-4">
+                                                {items.length === 0 && !isAddingGrade && (
+                                                    <div className="text-center py-8 text-text-muted">
+                                                        <p>No grades entered for {gw.category}.</p>
+                                                        <Button onClick={() => startAddGrade(gw.category)} className="mt-4">Add {gw.category} Grade</Button>
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-2">
+                                                    {items.map(item => (
+                                                        <div key={item.id} className="flex justify-between items-center p-3 bg-background rounded-lg border border-border group hover:border-primary/50 transition-colors">
+                                                            <span className="font-medium text-text-primary">{item.name}</span>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="text-right">
+                                                                    <div className="font-mono font-bold text-text-primary">
+                                                                        {item.score}/{item.total}
+                                                                    </div>
+                                                                    <div className="text-xs text-text-muted">
+                                                                        {((item.score / item.total) * 100).toFixed(1)}%
+                                                                    </div>
+                                                                </div>
+                                                                <button 
+                                                                    onClick={() => deleteGrade(item.id)}
+                                                                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded transition-all"
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Add Item Form */}
+                                                {isAddingGrade && (
+                                                     <div className="mt-4 bg-background p-4 rounded-lg border border-primary/50 animate-in fade-in slide-in-from-top-2">
+                                                        <Input 
+                                                            autoFocus
+                                                            placeholder="Assignment Name (e.g. Quiz 3)" 
+                                                            className="mb-3"
+                                                            value={newItemName}
+                                                            onChange={(e) => setNewItemName(e.target.value)}
+                                                        />
+                                                        <div className="flex gap-3 items-center mb-3">
+                                                            <div className="flex-1">
+                                                                <label className="text-xs text-text-muted mb-1 block">Score</label>
+                                                                <Input 
+                                                                    type="number" 
+                                                                    placeholder="Score" 
+                                                                    value={newItemScore}
+                                                                    onChange={(e) => setNewItemScore(e.target.value)}
+                                                                />
+                                                            </div>
+                                                            <span className="text-text-muted pt-6">/</span>
+                                                            <div className="flex-1">
+                                                                <label className="text-xs text-text-muted mb-1 block">Total Possible</label>
+                                                                <Input 
+                                                                    type="number" 
+                                                                    placeholder="Total" 
+                                                                    value={newItemTotal}
+                                                                    onChange={(e) => setNewItemTotal(e.target.value)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button variant="ghost" onClick={() => setIsAddingGrade(false)}>Cancel</Button>
+                                                            <Button onClick={saveGrade}>Save Grade</Button>
+                                                        </div>
+                                                     </div>
+                                                )}
+
+                                                {!isAddingGrade && items.length > 0 && (
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        className="w-full py-6 mt-4 dashed border border-dashed border-border hover:border-primary hover:text-primary"
+                                                        onClick={() => startAddGrade(gw.category)}
+                                                    >
+                                                        + Add Another Grade
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
+                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12 animate-in fade-in slide-in-from-left-4 duration-200">
                                 {course.gradeWeights.map((gw, idx) => {
                                     const catGrade = calculateCategoryGrade(gw.category)
                                     const items = course.gradedItems?.filter(i => i.category === gw.category) || []
 
                                     return (
-                                        <div key={idx} className="bg-surface border border-border rounded-xl overflow-hidden flex flex-col h-fit">
-                                            <div className="p-4 bg-surface-hover border-b border-border flex justify-between items-center">
-                                                <div>
-                                                    <h4 className="font-bold text-text-primary">{gw.category}</h4>
-                                                    <span className="text-xs text-text-muted font-mono">{gw.weight}% of grade</span>
-                                                </div>
-                                                <div className="text-lg font-bold text-text-primary">
-                                                    {catGrade !== null ? `${catGrade.toFixed(1)}%` : '-'}
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="p-4 flex-1 space-y-3">
-                                                {items.length === 0 && (
-                                                    <p className="text-sm text-text-muted italic text-center py-2">No grades entered</p>
-                                                )}
-                                                
-                                                {items.map(item => (
-                                                    <div key={item.id} className="flex justify-between items-center text-sm group">
-                                                        <span className="text-text-secondary">{item.name}</span>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="font-mono">{item.score}/{item.total}</span>
-                                                            <button 
-                                                                onClick={() => deleteGrade(item.id)}
-                                                                className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-opacity"
-                                                            >
-                                                                ✕
-                                                            </button>
-                                                        </div>
+                                        <div 
+                                            key={idx} 
+                                            className="bg-surface border border-border rounded-xl overflow-hidden hover:border-primary cursor-pointer transition-all shadow-sm hover:shadow-md group"
+                                            onClick={() => setActiveCategory(gw.category)}
+                                        >
+                                            <div className="p-6">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h4 className="font-bold text-xl text-text-primary group-hover:text-primary transition-colors">{gw.category}</h4>
+                                                        <span className="text-sm text-text-muted font-mono bg-secondary px-2 py-0.5 rounded">{gw.weight}% weight</span>
                                                     </div>
-                                                ))}
-
-                                                {/* Add Item Form */}
-                                                {addingToCategory === gw.category ? (
-                                                     <div className="mt-3 bg-background p-3 rounded border border-border animate-in fade-in slide-in-from-top-2">
-                                                        <Input 
-                                                            autoFocus
-                                                            placeholder="Name (e.g. Quiz 1)" 
-                                                            className="mb-2 text-sm"
-                                                            value={newItemName}
-                                                            onChange={(e) => setNewItemName(e.target.value)}
-                                                        />
-                                                        <div className="flex gap-2 items-center mb-2">
-                                                            <Input 
-                                                                type="number" 
-                                                                placeholder="Score" 
-                                                                className="w-20 text-sm"
-                                                                value={newItemScore}
-                                                                onChange={(e) => setNewItemScore(e.target.value)}
-                                                            />
-                                                            <span className="text-text-muted">/</span>
-                                                            <Input 
-                                                                type="number" 
-                                                                placeholder="Total" 
-                                                                className="w-20 text-sm"
-                                                                value={newItemTotal}
-                                                                onChange={(e) => setNewItemTotal(e.target.value)}
-                                                            />
-                                                        </div>
-                                                        <div className="flex gap-2 justify-end">
-                                                            <Button size="sm" variant="ghost" onClick={() => setAddingToCategory(null)}>Cancel</Button>
-                                                            <Button size="sm" onClick={saveGrade}>Save</Button>
-                                                        </div>
-                                                     </div>
-                                                ) : (
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="sm" 
-                                                        className="w-full mt-2 text-text-muted hover:text-primary border border-dashed border-border hover:border-primary"
-                                                        onClick={() => startAddGrade(gw.category)}
-                                                    >
-                                                        + Add Grade
-                                                    </Button>
-                                                )}
+                                                    <div className="text-2xl font-bold text-text-primary">
+                                                        {catGrade !== null ? `${catGrade.toFixed(1)}%` : '-'}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="text-sm text-text-secondary flex justify-between items-center mt-4">
+                                                    <span>{items.length} graded item{items.length !== 1 ? 's' : ''}</span>
+                                                    <span className="text-primary text-xs font-semibold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        Manage Grades →
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Mini progress bar or visual indicator */}
+                                                <div className="mt-3 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={clsx("h-full rounded-full transition-all duration-500", 
+                                                            catGrade && catGrade >= 90 ? "bg-green-500" :
+                                                            catGrade && catGrade >= 80 ? "bg-blue-500" :
+                                                            catGrade && catGrade >= 70 ? "bg-yellow-500" :
+                                                            "bg-text-muted"
+                                                        )}
+                                                        style={{ width: catGrade ? `${catGrade}%` : '0%' }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     )
