@@ -19,6 +19,61 @@ async function moodleCall(url: string, token: string, wsfunction: string, params
   return res.json();
 }
 
+async function updateCourseGrades(databases: any, dbId: string, collId: string, courseId: string, title: string, grade: { score: number, total: number }) {
+    try {
+        const course = await databases.getDocument(dbId, collId, courseId);
+        let gradedItems = course.gradedItems ? JSON.parse(course.gradedItems) : [];
+        if (!Array.isArray(gradedItems)) gradedItems = [];
+
+        // Check if item exists
+        const existingIndex = gradedItems.findIndex((i: any) => i.name === title);
+        
+        let changed = false;
+        if (existingIndex >= 0) {
+            // Update if changed
+            if (gradedItems[existingIndex].score !== grade.score || gradedItems[existingIndex].total !== grade.total) {
+                gradedItems[existingIndex].score = grade.score;
+                gradedItems[existingIndex].total = grade.total;
+                changed = true;
+            }
+        } else {
+            // Create
+            let gradeWeights = course.gradeWeights ? JSON.parse(course.gradeWeights) : [];
+            let category = null;
+            
+            if (gradeWeights.length > 0) {
+                // Find matching category
+                const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
+                if (match) {
+                    category = match.category;
+                } else {
+                    category = gradeWeights[0].category; // Fallback to first
+                }
+            }
+
+            if (category) {
+                gradedItems.push({
+                    id: Math.random().toString(36).substring(2, 9),
+                    category: category,
+                    name: title,
+                    score: grade.score,
+                    total: grade.total
+                });
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            await databases.updateDocument(dbId, collId, courseId, {
+                gradedItems: JSON.stringify(gradedItems)
+            });
+        }
+    } catch (e) {
+        console.error("Failed to update grades for course", courseId, e);
+    }
+}
+
+
 // Reusing Moodle fetch logic (should ideally be extracted to a lib service)
 async function fetchMoodleAssignments(url: string, token: string, userid: number) {
   const wsUrl = `${url}/webservice/rest/server.php`;
@@ -81,6 +136,7 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
 
           // Check submission status
           let isSubmitted = false;
+          let gradeInfo = null;
           try {
               const submissionData = await moodleCall(url, token, 'mod_assign_get_submission_status', {
                   assignid: a.id,
@@ -90,6 +146,19 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
               if (submissionData?.lastattempt?.submission?.status === 'submitted' ||
                   submissionData?.lastattempt?.graded === true) {
                   isSubmitted = true;
+              }
+
+              if (submissionData?.feedback?.grade?.grade) {
+                  const gradeVal = parseFloat(submissionData.feedback.grade.grade);
+                  // a.grade is usually the max grade (int)
+                  const maxGrade = a.grade ? parseFloat(a.grade) : 100;
+                  
+                  if (!isNaN(gradeVal)) {
+                      gradeInfo = {
+                          score: gradeVal,
+                          total: maxGrade
+                      };
+                  }
               }
           } catch (e) {
               // Continue without submission status
@@ -103,7 +172,8 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
               dueDate: a.duedate, // unix timestamp
               id: a.id,
               cmid: a.cmid, // Course Module ID
-              isSubmitted: isSubmitted
+              isSubmitted: isSubmitted,
+              gradeInfo: gradeInfo
           });
       }
   }
@@ -195,6 +265,14 @@ export async function GET(req: NextRequest) {
                         if (mCodeClean.includes(iCode) || iCode.includes(mCodeClean) || mNameClean === iName) {
                             internalCourseId = internal.$id;
                             break;
+                        }
+                    }
+
+                    if (internalCourseId && mAssign.gradeInfo) {
+                        try {
+                            await updateCourseGrades(databases, DATABASE_ID, COURSES_COLLECTION, internalCourseId, mAssign.title, mAssign.gradeInfo);
+                        } catch (e) {
+                            console.error('Error updating grades:', e);
                         }
                     }
 

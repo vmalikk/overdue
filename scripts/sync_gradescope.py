@@ -39,6 +39,7 @@ import requests
 # Configuration
 DATABASE_ID = "6971d0970008b1d89c01"
 ASSIGNMENTS_COLLECTION = "assignment"
+COURSES_COLLECTION = "courses"
 CONFLICTS_COLLECTION = "conflicts"
 
 # Gradescope URLs
@@ -65,6 +66,7 @@ class GradescopeAssignment:
     course_name: str
     deadline: datetime
     points_possible: Optional[float] = None
+    score: Optional[float] = None
     submission_status: Optional[str] = None
 
 
@@ -253,6 +255,35 @@ class GradescopeSyncer:
         except Exception as e:
             logger.error(f"Failed to mark token expired for user {user_id}: {e}")
 
+    def get_user_courses(self, user_id: str) -> List[Dict]:
+        """Get existing courses for a user"""
+        try:
+            courses = []
+            offset = 0
+            limit = 100
+
+            while True:
+                response = self.databases.list_documents(
+                    DATABASE_ID,
+                    COURSES_COLLECTION,
+                    queries=[
+                        Query.equal('userId', user_id),
+                        Query.limit(limit),
+                        Query.offset(offset)
+                    ]
+                )
+
+                courses.extend(response['documents'])
+
+                if len(response['documents']) < limit:
+                    break
+                offset += limit
+
+            return courses
+        except Exception as e:
+            logger.error(f"Error fetching courses for user {user_id}: {e}")
+            return []
+
     def get_user_assignments(self, user_id: str) -> List[Dict]:
         """Get existing assignments for a user"""
         try:
@@ -385,6 +416,96 @@ class GradescopeSyncer:
         except Exception as e:
             logger.error(f"Error updating assignment {assignment_id}: {e}")
 
+    def update_course_grades(
+        self,
+        course_id: str,
+        title: str,
+        score: float,
+        total: float
+    ):
+        """Update existing course grades"""
+        try:
+            # Re-fetch course to get latest gradedItems
+            course = self.databases.get_document(
+                DATABASE_ID,
+                COURSES_COLLECTION,
+                course_id
+            )
+            
+            graded_items = []
+            if course.get('gradedItems'):
+                try:
+                    graded_items = json.loads(course['gradedItems'])
+                except:
+                    graded_items = []
+            
+            if not isinstance(graded_items, list):
+                graded_items = []
+
+            # Check if item exists
+            existing_index = -1
+            for i, item in enumerate(graded_items):
+                if item.get('name') == title:
+                    existing_index = i
+                    break
+            
+            changed = False
+            
+            if existing_index >= 0:
+                # Update if different
+                curr_score = graded_items[existing_index].get('score')
+                curr_total = graded_items[existing_index].get('total')
+                if curr_score != score or curr_total != total:
+                    graded_items[existing_index]['score'] = score
+                    graded_items[existing_index]['total'] = total
+                    changed = True
+            else:
+                # Create
+                grade_weights = []
+                if course.get('gradeWeights'):
+                    try:
+                        grade_weights = json.loads(course['gradeWeights'])
+                    except:
+                        pass
+                
+                category = "Assignments"
+                if grade_weights:
+                    # Fuzzy match category
+                    found = False
+                    for gw in grade_weights:
+                        cat_name = gw.get('category', '').lower()
+                        if cat_name and (cat_name in title.lower() or title.lower() in cat_name):
+                            category = gw['category']
+                            found = True
+                            break
+                    if not found and grade_weights:
+                        category = grade_weights[0]['category']
+                
+                # Generate simple ID
+                import random, string
+                new_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
+                graded_items.append({
+                    'id': new_id,
+                    'category': category,
+                    'name': title,
+                    'score': score,
+                    'total': total
+                })
+                changed = True
+            
+            if changed:
+                self.databases.update_document(
+                    DATABASE_ID,
+                    COURSES_COLLECTION,
+                    course_id,
+                    {'gradedItems': json.dumps(graded_items)}
+                )
+                logger.info(f"Updated grades for course {course_id} - {title}")
+
+        except Exception as e:
+            logger.error(f"Error updating course grades {course_id}: {e}")
+
     def create_conflict(
         self,
         user_id: str,
@@ -445,8 +566,9 @@ class GradescopeSyncer:
                 self.stats['users_skipped'] += 1
                 return
 
-            # Get user's existing assignments
+            # Get user's existing assignments and courses
             existing_assignments = self.get_user_assignments(user.id)
+            internal_courses = self.get_user_courses(user.id)
 
             # Fetch courses and assignments from Gradescope
             courses = gs_client.get_courses()
@@ -455,6 +577,21 @@ class GradescopeSyncer:
             for course in courses:
                 course_id = str(course.get('id', ''))
                 course_name = course.get('name', course.get('shortname', 'Unknown'))
+                
+                # Attempt to match with internal course
+                internal_course_id = ''
+                gs_name_clean = ''.join(e for e in course_name.lower() if e.isalnum())
+                gs_short_clean = ''.join(e for e in course.get('shortname', '').lower() if e.isalnum())
+                
+                for ic in internal_courses:
+                    ic_code = ''.join(e for e in ic.get('code', '').lower() if e.isalnum())
+                    ic_name = ''.join(e for e in ic.get('name', '').lower() if e.isalnum())
+                    
+                    if (ic_code and ic_code in gs_short_clean) or \
+                       (gs_short_clean and gs_short_clean in ic_code) or \
+                       (ic_name and ic_name == gs_name_clean):
+                        internal_course_id = ic['$id']
+                        break
 
                 assignments = gs_client.get_assignments(course_id)
                 logger.info(f"Found {len(assignments)} assignments in {course_name}")
@@ -467,6 +604,15 @@ class GradescopeSyncer:
                             continue
 
                         deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+                        
+                        points_possible = assignment_data.get('total_points')
+                        if points_possible is None:
+                            points_possible = assignment_data.get('points')
+                        
+                        # Parse score
+                        score = assignment_data.get('score')
+                        if score is None and 'submission' in assignment_data:
+                             score = assignment_data['submission'].get('score')
 
                         gs_assignment = GradescopeAssignment(
                             id=str(assignment_data.get('id', '')),
@@ -474,8 +620,14 @@ class GradescopeSyncer:
                             course_id=course_id,
                             course_name=course_name,
                             deadline=deadline,
-                            points_possible=assignment_data.get('total_points')
+                            points_possible=float(points_possible) if points_possible is not None else None,
+                            score=float(score) if score is not None else None
                         )
+                        
+                        # Update course grades if score exists and course matched
+                        if gs_assignment.score is not None and internal_course_id:
+                            total = gs_assignment.points_possible if gs_assignment.points_possible else 100.0
+                            self.update_course_grades(internal_course_id, gs_assignment.title, gs_assignment.score, total)
 
                         # Check if already tracked by gradescopeId
                         existing_match = self.find_by_gradescope_id(
@@ -484,15 +636,21 @@ class GradescopeSyncer:
                         )
 
                         if existing_match:
-                            # Update if deadline changed
+                            # Update details
+                            updates = {}
                             existing_deadline = datetime.fromisoformat(
                                 existing_match['deadline'].replace('Z', '+00:00')
                             )
                             if existing_deadline != gs_assignment.deadline:
-                                self.update_assignment(existing_match['$id'], {
-                                    'deadline': gs_assignment.deadline.isoformat()
-                                })
-                                logger.info(f"Updated deadline for {gs_assignment.title}")
+                                updates['deadline'] = gs_assignment.deadline.isoformat()
+                            
+                            # Update courseId if we found a match and it was missing
+                            if internal_course_id and not existing_match.get('courseId'):
+                                updates['courseId'] = internal_course_id
+                            
+                            if updates:
+                                self.update_assignment(existing_match['$id'], updates)
+                                logger.info(f"Updated {gs_assignment.title}")
                             continue
 
                         # Check for potential conflict with manual assignment
@@ -506,7 +664,25 @@ class GradescopeSyncer:
                             self.create_conflict(user.id, similar_assignment, gs_assignment)
                         else:
                             # Create new assignment
-                            if self.create_assignment(user.id, gs_assignment):
+                            # Inject internal_course_id into creation logic. 
+                            # But create_assignment method doesn't take it currently.
+                            # I'll modify create_assignment now as well or just update it after creation if simpler. 
+                            # Or better: modify create_assignment to take optional course_id.
+                            
+                            # Since I can't easily modify create_assignment signature without replacing it too,
+                            # I'll just override the courseId in the method if I pass it, 
+                            # but create_assignment is separate.
+                            # Let's just create it, then update it if needed? No, create correctly is better.
+                            
+                            # I'll temporarily update the create_assignment call to handle it if I modify create_assignment.
+                            # But I didn't modify create_assignment yet.
+                            # Let's update create_assignment later. For now, create then update if needed.
+                            # Actually, I'll invoke create_assignment then update.
+                            
+                            new_id = self.create_assignment(user.id, gs_assignment)
+                            if new_id:
+                                if internal_course_id:
+                                    self.update_assignment(new_id, {'courseId': internal_course_id})
                                 self.stats['assignments_synced'] += 1
                                 logger.info(f"Created assignment: {gs_assignment.title}")
 
