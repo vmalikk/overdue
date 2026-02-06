@@ -247,7 +247,7 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                         {!course.gradeWeights || course.gradeWeights.length === 0 ? (
                             <div className="text-center py-12 text-text-muted">
                                 <p>No grading categories defined.</p>
-                                <Button variant="link" onClick={() => setIsEditingWeights(true)}>Set up grading scheme</Button>
+                                <Button variant="ghost" className="text-primary hover:underline" onClick={() => setIsEditingWeights(true)}>Set up grading scheme</Button>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
