@@ -207,7 +207,7 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                                     <Button size="sm" onClick={saveWeights}>Save Weights</Button>
                                 </>
                             ) : (
-                                <Button size="sm" variant="outline" onClick={() => setIsEditingWeights(true)}>Edit Categories</Button>
+                                <Button size="sm" variant="secondary" onClick={() => setIsEditingWeights(true)}>Edit Categories</Button>
                             )}
                         </div>
                     </div>
