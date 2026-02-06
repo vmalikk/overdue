@@ -11,6 +11,14 @@ export interface GradeWeight {
   weight: number // Percentage, e.g., 20
 }
 
+export interface GradedItem {
+  id: string
+  category: string // Matches gradeWeights.category
+  name: string
+  score: number // User's score
+  total: number // Max score
+}
+
 export interface Course {
   id: string                    // UUID
   code: string                  // e.g., "ECE 306"
@@ -20,6 +28,7 @@ export interface Course {
   professorEmail?: string
   officeHours?: OfficeHour[]
   gradeWeights?: GradeWeight[]
+  gradedItems?: GradedItem[]
   description?: string
   active: boolean               // Archive old courses
   createdAt: Date
@@ -34,6 +43,7 @@ export interface CourseFormData {
   professorEmail?: string
   officeHours?: OfficeHour[]
   gradeWeights?: GradeWeight[]
+  gradedItems?: GradedItem[]
   description?: string
   active?: boolean
 }

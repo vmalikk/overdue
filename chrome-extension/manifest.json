@@ -8,12 +8,6 @@
     "activeTab"
   ],
   "host_permissions": [
-    "https://*.moodle.com/*",
-    "http://*.moodle.com/*",
-    "https://moodle.*/*",
-    "http://moodle.*/*",
-    "https://*/*.moodle.com/*",
-    "https://www.gradescope.com/*",
     "*://*/*"
   ],
   "background": {
@@ -22,12 +16,9 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.moodle.com/*",
-        "http://*.moodle.com/*",
-        "https://moodle.*/*",
-        "http://moodle.*/*",
         "*://*/mod/assign/*",
-        "*://*/course/view.php*"
+        "*://*/course/view.php*",
+        "*://*/course/modedit.php*"
       ],
       "js": ["content-moodle.js"],
       "run_at": "document_idle"

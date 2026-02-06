@@ -183,6 +183,7 @@ export async function addCourse(course: Omit<Course, 'id' | 'createdAt'>, userId
       professorEmail: course.professorEmail || null,
       officeHours: course.officeHours ? JSON.stringify(course.officeHours) : null,
       gradeWeights: course.gradeWeights ? JSON.stringify(course.gradeWeights) : null,
+      gradedItems: course.gradedItems ? JSON.stringify(course.gradedItems) : null,
       description: course.description || null,
       active: course.active ?? true,
       userId: userId,
@@ -204,6 +205,9 @@ export async function updateCourse(id: string, updates: Partial<Course>): Promis
   }
   if (updates.gradeWeights) {
     updateData.gradeWeights = JSON.stringify(updates.gradeWeights);
+  }
+  if (updates.gradedItems) {
+    updateData.gradedItems = JSON.stringify(updates.gradedItems);
   }
 
   // Remove fields that shouldn't be updated
@@ -258,6 +262,7 @@ function mapDocumentToCourse(doc: any): Course {
     professorEmail: doc.professorEmail,
     officeHours: doc.officeHours ? JSON.parse(doc.officeHours) : [],
     gradeWeights: doc.gradeWeights ? JSON.parse(doc.gradeWeights) : [],
+    gradedItems: doc.gradedItems ? JSON.parse(doc.gradedItems) : [],
     description: doc.description,
     active: doc.active,
     createdAt: new Date(doc.$createdAt),
