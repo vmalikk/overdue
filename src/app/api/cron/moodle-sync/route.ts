@@ -5,10 +5,24 @@ import { decryptData } from '@/lib/moodle/encryption';
 
 const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// Helper to call Moodle API
+async function moodleCall(url: string, token: string, wsfunction: string, params: Record<string, any> = {}) {
+  const wsUrl = `${url}/webservice/rest/server.php`;
+  const query = new URLSearchParams({
+    wstoken: token,
+    wsfunction: wsfunction,
+    moodlewsrestformat: 'json',
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+  });
+
+  const res = await fetch(`${wsUrl}?${query.toString()}`);
+  return res.json();
+}
+
 // Reusing Moodle fetch logic (should ideally be extracted to a lib service)
 async function fetchMoodleAssignments(url: string, token: string, userid: number) {
   const wsUrl = `${url}/webservice/rest/server.php`;
-  
+
   // 1. Get Courses
   const coursesParams = new URLSearchParams({
     wstoken: token,
@@ -19,21 +33,21 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
 
   const coursesRes = await fetch(`${wsUrl}?${coursesParams.toString()}`);
   const coursesJson = await coursesRes.json();
-  
+
   if (coursesJson.exception || !Array.isArray(coursesJson)) {
      throw new Error(coursesJson.message || 'Failed to fetch courses');
   }
 
   const courseIds = coursesJson.map((c: any) => c.id);
   const assignmentsData = [];
-  
+
   // 2. Get Assignments
   const now = Math.floor(Date.now() / 1000);
   const cutoff = now - (14 * 24 * 60 * 60);
 
-  // We can fetch multiple courses at once or one by one. 
+  // We can fetch multiple courses at once or one by one.
   // 'mod_assign_get_assignments' accepts 'courseids' array.
-  
+
   // Moodle API params for list
   const assignParams = new URLSearchParams({
     wstoken: token,
@@ -41,7 +55,7 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
     moodlewsrestformat: 'json'
     // courseids[0]: ... (needs special encoding usually, but we can try omitting to get all, or loop)
   });
-  
+
   // If we don't specify courseids, it might return all enrolled. Let's try specifying.
   courseIds.forEach((id: number, index: number) => {
       assignParams.append(`courseids[${index}]`, id.toString());
@@ -53,9 +67,9 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
   if (assignJson.warnings && assignJson.warnings.length > 0) {
       console.warn('Moodle warnings:', assignJson.warnings);
   }
-  
+
   const coursesWithAssigns = assignJson.courses || [];
-  
+
   for (const c of coursesWithAssigns) {
       const courseName = c.fullname;
       const courseShortName = c.shortname;
@@ -64,7 +78,23 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
       for (const a of c.assignments) {
           // Filter old
           if (a.duedate < cutoff) continue;
-          
+
+          // Check submission status
+          let isSubmitted = false;
+          try {
+              const submissionData = await moodleCall(url, token, 'mod_assign_get_submission_status', {
+                  assignid: a.id,
+                  userid: userid
+              });
+
+              if (submissionData?.lastattempt?.submission?.status === 'submitted' ||
+                  submissionData?.lastattempt?.graded === true) {
+                  isSubmitted = true;
+              }
+          } catch (e) {
+              // Continue without submission status
+          }
+
           assignmentsData.push({
               title: a.name,
               courseName: courseName,
@@ -72,7 +102,8 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
               courseId: courseId,
               dueDate: a.duedate, // unix timestamp
               id: a.id,
-              cmid: a.cmid // Course Module ID
+              cmid: a.cmid, // Course Module ID
+              isSubmitted: isSubmitted
           });
       }
   }
@@ -170,6 +201,9 @@ export async function GET(req: NextRequest) {
                     if (!existing) {
                         if (mAssign.dueDate < todaySeconds) continue;
 
+                        // Skip if already submitted
+                        if (mAssign.isSubmitted) continue;
+
                         await databases.createDocument(
                             DATABASE_ID,
                             ASSIGNMENTS_COLLECTION,
@@ -183,10 +217,10 @@ export async function GET(req: NextRequest) {
                                 courseId: internalCourseId,
                                 source: 'moodle',
                                 category: 'assignment',
-                                status: 'not_started',
+                                status: mAssign.isSubmitted ? 'completed' : 'not_started',
                                 userId: user.$id,
                                 tags: [],
-                                completedAt: null,
+                                completedAt: mAssign.isSubmitted ? new Date().toISOString() : null,
                                 notes: `Imported from Moodle (${mAssign.courseShortName})`
                             }
                         );
@@ -198,18 +232,27 @@ export async function GET(req: NextRequest) {
                          const titleChanged = existing.title !== mAssign.title;
                          const deadlineChanged = existingDeadline !== newDeadline;
                          const cmidChanged = existing.gradescopeId !== cId;
+                         const statusChanged = mAssign.isSubmitted && existing.status !== 'completed';
 
-                         if (titleChanged || deadlineChanged || cmidChanged) {
+                         if (titleChanged || deadlineChanged || cmidChanged || statusChanged) {
+                             const updatePayload: any = {
+                                 title: mAssign.title,
+                                 deadline: dueDateObj ? dueDateObj.toISOString() : null,
+                                 gradescopeId: cId,
+                                 gradescopeCourseName: url
+                             };
+
+                             // If we detected it's submitted, mark as completed
+                             if (statusChanged) {
+                                 updatePayload.status = 'completed';
+                                 updatePayload.completedAt = new Date().toISOString();
+                             }
+
                              await databases.updateDocument(
                                 DATABASE_ID,
                                 ASSIGNMENTS_COLLECTION,
                                 existing.$id,
-                                {
-                                    title: mAssign.title,
-                                    deadline: dueDateObj ? dueDateObj.toISOString() : null,
-                                    gradescopeId: cId,
-                                    gradescopeCourseName: url
-                                }
+                                updatePayload
                              );
                              ops++;
                          }

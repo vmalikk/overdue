@@ -160,17 +160,17 @@ export async function POST(request: NextRequest) {
         const mId = mAssign.id.toString();
         const cId = mAssign.cmid.toString();
         // Check for existing assignment by either ID (old style) or CMID (new style)
-        const existing = existingDocs.documents.find((d: any) => 
+        const existing = existingDocs.documents.find((d: any) =>
             d.gradescopeId === mId || d.gradescopeId === cId
         );
 
         const dueDateObj = mAssign.dueDate ? new Date(mAssign.dueDate * 1000) : null;
-        
+
         // Link Course
         let internalCourseId = '';
         const mCodeClean = normalize(mAssign.courseShortName);
         const mNameClean = normalize(mAssign.courseName);
-        
+
         for (const internal of internalCourses) {
             const iCode = normalize(internal.code);
             const iName = normalize(internal.name);
@@ -180,22 +180,38 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Check submission status for this assignment
+        let isSubmitted = false;
+        try {
+            const submissionData = await moodleCall('mod_assign_get_submission_status', {
+                assignid: mAssign.id,
+                userid: userid
+            });
+
+            // Check if assignment has been submitted
+            // Moodle API returns lastattempt.submission.status which can be "submitted" or other values
+            if (submissionData?.lastattempt?.submission?.status === 'submitted' ||
+                submissionData?.lastattempt?.graded === true) {
+                isSubmitted = true;
+            }
+        } catch (e) {
+            // If API call fails, continue without submission status (default to not submitted)
+            console.log(`Moodle Sync: Could not fetch submission status for assignment ${mAssign.id}`)
+        }
+
         // Filtering Logic
         // 1. If existing, keep/update
-        // 2. If New, must be due today+ and pending
-        
-        // Moodle doesn't easily give "status" (submitted/graded) in the assignment list itself
-        // unless we call `mod_assign_get_submission_status` for EACH assignment. 
-        // That is expensive (N API calls). 
-        // Optimization: For "Sync Now", maybe we assume if due date passed it's effectively "not for todo list" unless we are keeping history.
-        
-        // Actually, `mod_assign_get_assignments` usually returns simple info.
-        // We will stick to the date filter for new assignments.
-        
+        // 2. If New, must be due today+ and not submitted
+
         if (!existing) {
             // Check Date (dueDate is seconds)
             if (mAssign.dueDate < todayMidnight) {
                 continue; // Past due
+            }
+
+            // Skip if already submitted
+            if (isSubmitted) {
+                continue;
             }
         }
 
@@ -207,7 +223,7 @@ export async function POST(request: NextRequest) {
             gradescopeCourseName: url, // Store BASE Moodle URL for link generation
             courseId: existing ? existing.courseId : internalCourseId,
             source: 'moodle',
-            status: 'not_started' 
+            status: isSubmitted ? 'completed' : 'not_started'
         };
 
         if (existing) {
@@ -217,8 +233,9 @@ export async function POST(request: NextRequest) {
              const deadlineChanged = existingDeadline !== newDeadline;
              const courseIdChanged = !existing.courseId && internalCourseId;
              const cmidChanged = existing.gradescopeId !== docData.gradescopeId; // If we didn't store CMID before
+             const statusChanged = docData.status === 'completed' && existing.status !== 'completed';
 
-             if (titleChanged || deadlineChanged || courseIdChanged || cmidChanged) {
+             if (titleChanged || deadlineChanged || courseIdChanged || cmidChanged || statusChanged) {
                  const updates: any = {
                      title: docData.title,
                      deadline: docData.deadline,
@@ -226,6 +243,12 @@ export async function POST(request: NextRequest) {
                      gradescopeCourseName: docData.gradescopeCourseName // Ensure URL is saved
                  }
                  if (courseIdChanged) updates.courseId = internalCourseId;
+
+                 // If we detected it's submitted, mark as completed
+                 if (statusChanged) {
+                     updates.status = 'completed';
+                     updates.completedAt = new Date().toISOString();
+                 }
 
                  await databases.updateDocument(
                     DATABASE_ID,
@@ -246,7 +269,7 @@ export async function POST(request: NextRequest) {
                     category: 'assignment',
                     userId: user.$id,
                     tags: [],
-                    completedAt: null,
+                    completedAt: docData.status === 'completed' ? new Date().toISOString() : null,
                     notes: `Imported from Moodle (${mAssign.courseShortName})`
                 }
             );

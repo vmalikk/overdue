@@ -26,6 +26,7 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     sortOrder,
     setSortBy,
     setSortOrder,
+    filterDateRange,
   } = useAssignmentStore()
 
   const { loadCourses } = useCourseStore()
@@ -63,7 +64,8 @@ export function AssignmentTable({ filterStatus = 'incomplete', filterTime = 'all
     }
 
     // 3. Time Filter (Only for Dashboard / 'week' view)
-    if (filterTime === 'week') {
+    // Skip week filter if a specific date range is selected from the calendar
+    if (filterTime === 'week' && !filterDateRange) {
       const now = new Date();
       // Ensure deadline is a valid Date object
       const deadline = assignment.deadline instanceof Date

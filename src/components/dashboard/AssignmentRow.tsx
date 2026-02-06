@@ -91,26 +91,6 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
     }
   }
 
-  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    e.stopPropagation()
-    const newStatus = e.target.value as AssignmentStatus
-    try {
-      await updateAssignment(assignment.id, {
-        status: newStatus,
-        completedAt: newStatus === AssignmentStatus.COMPLETED ? new Date() : undefined
-      })
-      showToast(`Status changed to ${statusLabels[newStatus]}`, 'success')
-    } catch (error) {
-      showToast('Failed to update status', 'error')
-    }
-  }
-
-  const statusLabels: Record<AssignmentStatus, string> = {
-    [AssignmentStatus.NOT_STARTED]: 'Not Started',
-    [AssignmentStatus.IN_PROGRESS]: 'In Progress',
-    [AssignmentStatus.COMPLETED]: 'Completed',
-  }
-
   const categoryIcons: Record<string, string> = {
     'exam': '📝',
     'quiz': '✍️',
@@ -154,54 +134,40 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              {gradescopeUrl ? (
-                <a
-                  href={gradescopeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className={clsx(
-                    'font-medium text-text-primary hover:text-blue-500 hover:underline',
-                    isCompleted && 'line-through'
-                  )}
-                >
-                  {assignment.title} <span className="text-xs opacity-50">↗</span>
-                </a>
-              ) : moodleUrl ? (
-                <a
-                  href={moodleUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className={clsx(
-                    'font-medium text-text-primary hover:text-orange-500 hover:underline',
-                    isCompleted && 'line-through'
-                  )}
-                >
-                  {assignment.title} <span className="text-xs opacity-50">↗</span>
-                </a>
-              ) : (
-                <h3 className={clsx(
-                  'font-medium text-text-primary',
-                  isCompleted && 'line-through'
-                )}>
-                  {assignment.title}
-                </h3>
-              )}
-
-              {/* Status dropdown for mobile */}
-              <select
-                value={assignment.status}
-                onChange={handleStatusChange}
+            {gradescopeUrl ? (
+              <a
+                href={gradescopeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-xs px-2 py-1 rounded border border-border bg-secondary text-text-primary"
+                className={clsx(
+                  'font-medium text-text-primary hover:text-blue-500 hover:underline',
+                  isCompleted && 'line-through'
+                )}
               >
-                <option value={AssignmentStatus.NOT_STARTED}>Not Started</option>
-                <option value={AssignmentStatus.IN_PROGRESS}>In Progress</option>
-                <option value={AssignmentStatus.COMPLETED}>Completed</option>
-              </select>
-            </div>
+                {assignment.title} <span className="text-xs opacity-50">↗</span>
+              </a>
+            ) : moodleUrl ? (
+              <a
+                href={moodleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className={clsx(
+                  'font-medium text-text-primary hover:text-orange-500 hover:underline',
+                  isCompleted && 'line-through'
+                )}
+              >
+                {assignment.title} <span className="text-xs opacity-50">↗</span>
+              </a>
+            ) : (
+              <h3 className={clsx(
+                'font-medium text-text-primary',
+                isCompleted && 'line-through'
+              )}>
+                {assignment.title}
+              </h3>
+            )}
           </div>
 
           {/* Delete */}
@@ -319,21 +285,24 @@ export function AssignmentRow({ assignment, isMobile = false, onClick }: Assignm
       {/* Actions - 10% width */}
       <td className="px-4 py-3" style={{ width: '10%' }}>
         <div className="flex items-center gap-2">
-          {/* Status dropdown */}
-          <select
-            value={assignment.status}
-            onChange={handleStatusChange}
-            onClick={(e) => e.stopPropagation()}
+          {/* Complete checkbox */}
+          <button
+            onClick={handleComplete}
             className={clsx(
-              'text-xs px-2 py-1 rounded border border-border bg-secondary text-text-primary cursor-pointer',
-              'focus:outline-none focus:ring-2 focus:ring-priority-medium'
+              'p-1.5 rounded-full border-2 transition-colors flex-shrink-0',
+              isCompleted
+                ? 'border-status-green bg-status-green text-white'
+                : 'border-text-muted hover:border-status-green'
             )}
-            title="Change status"
+            title={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
           >
-            <option value={AssignmentStatus.NOT_STARTED}>Not Started</option>
-            <option value={AssignmentStatus.IN_PROGRESS}>In Progress</option>
-            <option value={AssignmentStatus.COMPLETED}>Completed</option>
-          </select>
+            {isCompleted && (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {!isCompleted && <div className="w-4 h-4" />}
+          </button>
 
           {/* Delete button */}
           <button

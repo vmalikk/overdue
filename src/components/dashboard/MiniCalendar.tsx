@@ -202,7 +202,7 @@ export function MiniCalendar({ value, onChange, disabled }: MiniCalendarProps) {
         onClick={() => setFilterDateRange(undefined)}
         className="w-full mt-4 text-xs text-text-muted hover:text-text-primary transition-colors"
       >
-        Clear date filter
+        Show next 7 days
       </button>
     </div>
   )

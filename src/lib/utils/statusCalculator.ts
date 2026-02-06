@@ -22,9 +22,13 @@ export function calculateStatus(assignment: Assignment): StatusIndicatorData {
   const now = new Date()
   const deadline = new Date(assignment.deadline)
 
-  // Calculate days until due (ceiling to count partial days as full days)
-  const timeDiff = deadline.getTime() - now.getTime()
-  const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+  // Normalize dates to start of day for accurate day comparison
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const deadlineStart = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate())
+
+  // Calculate days until due based on calendar days, not hours
+  const timeDiff = deadlineStart.getTime() - todayStart.getTime()
+  const daysUntilDue = Math.round(timeDiff / (1000 * 60 * 60 * 24))
 
   // Red: Overdue
   if (daysUntilDue < 0) {
@@ -42,7 +46,7 @@ export function calculateStatus(assignment: Assignment): StatusIndicatorData {
       return {
         color: 'red',
         daysUntilDue,
-        message: 'Due today!'
+        message: 'Due today'
       }
     }
     return {
