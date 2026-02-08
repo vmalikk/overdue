@@ -67,6 +67,64 @@ function parseGradescopeDate(dateStr: string): Date | null {
     }
 }
 
+// Helper to update course grades (replicated from moodle sync logic)
+async function updateCourseGrades(databases: any, dbId: string, collId: string, courseId: string, title: string, grade: { score: number, total: number }) {
+    try {
+        const course = await databases.getDocument(dbId, collId, courseId);
+        let gradedItems = course.gradedItems ? JSON.parse(course.gradedItems) : [];
+        if (!Array.isArray(gradedItems)) gradedItems = [];
+
+        // Check if item exists
+        const existingIndex = gradedItems.findIndex((i: any) => i.name === title);
+        
+        let changed = false;
+        if (existingIndex >= 0) {
+            // Update if changed
+            if (gradedItems[existingIndex].score !== grade.score || gradedItems[existingIndex].total !== grade.total) {
+                gradedItems[existingIndex].score = grade.score;
+                gradedItems[existingIndex].total = grade.total;
+                changed = true;
+            }
+        } else {
+            // Create
+            let gradeWeights = course.gradeWeights ? JSON.parse(course.gradeWeights) : [];
+            let category = null;
+            
+            if (gradeWeights.length > 0) {
+                // Find matching category
+                const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
+                if (match) {
+                    category = match.category;
+                } else {
+                    category = gradeWeights[0].category; // Fallback to first
+                }
+            } else {
+                category = "Assignments";
+            }
+
+            // Fallback for empty array check above
+            if (!category) category = "Assignments";
+
+            gradedItems.push({
+                id: Math.random().toString(36).substring(2, 9),
+                category: category,
+                name: title,
+                score: grade.score,
+                total: grade.total
+            });
+            changed = true;
+        }
+
+        if (changed) {
+            await databases.updateDocument(dbId, collId, courseId, {
+                gradedItems: JSON.stringify(gradedItems)
+            });
+        }
+    } catch (e) {
+        console.error("Failed to update grades for course", courseId, e);
+    }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request)
@@ -176,6 +234,7 @@ export async function POST(request: NextRequest) {
     
     // 2. Fetch Assignments for all courses
     let allGsAssignments: any[] = [];
+    const gradeUpdates: any[] = [];
     
     // Limit concurrency to avoid getting blocked
     // For now, sequential is safer
@@ -225,22 +284,70 @@ export async function POST(request: NextRequest) {
                         title = potentialNameCell.text().trim();
                      }
 
-                     const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+                     let score: number | null = null;
+                     let total: number | null = null;
 
-                     // Identify Due Date column
-                     // Based on logs: 
-                     // 4 'td' columns found previously -> Last column (index 3) was proper ISO date.
-                     // With 'th' added, we expect 5 columns. Last column (index 4) should be Due Date.
-                     // We look for the last column that parses as a valid date.
+                     // Attempt to find score (e.g., "5.0 / 10.0")
+                     // iterate through all cells to find a score pattern
+                     cells.each((_: unknown, cell: unknown) => {
+                         const cellText = $c(cell).text().trim();
+                         // Regex for "X / Y" or "X.X / Y.Y"
+                         const scoreMatch = cellText.match(/([\d\.]+)\s*\/\s*([\d\.]+)/);
+                         if (scoreMatch) {
+                             score = parseFloat(scoreMatch[1]);
+                             total = parseFloat(scoreMatch[2]);
+                         }
+                     });
                      
-                     let status = '';
-                     let dueDateStr = '';
-                     
-                     // Attempt to grab status from column 1 or 2
-                     if (cells.length >= 2) {
-                        // If cell 0 is Name, cell 1 is often Score or Status
-                        status = $c(cells[1]).text().trim();
+                     // If found score, update course stats
+                     if (score !== null) {
+                         // Find internal course for this GS course
+                         const internalCourseId = findInternalCourseId(course, internalCourses.documents);
+                         if (internalCourseId) {
+                             log(`Found Grade: ${cleanTitle} = ${score}/${total} for course ${course.shortName} -> ${internalCourseId}`);
+                             gradeUpdates.push({
+                                 courseId: internalCourseId,
+                                 title: cleanTitle,
+                                 score,
+                                 total
+                             });
+                         }
                      }
+
+                     if (cleanTitle && dueDate) {
+                         allGsAssignments.push({
+                             id: assignmentId,
+                             title: cleanTitle,
+                             courseId: course.id,
+                             courseName: course.name,
+                             courseShortName: course.shortName,
+                             deadline: dueDate.toISOString(),
+                             status: status,
+                             score, // Pass score
+                             total // Pass total
+                         });
+                    }
+                 });
+            } else {
+                log(`Gradescope Sync: No assignment table found for ${course.shortName}`);
+            }
+        } else {
+             log(`Gradescope Sync: Failed to fetch course page ${course.id}: ${courseRes.status}`);
+        }
+    }
+
+    // Process all captured grade updates
+    log(`Processing ${gradeUpdates.length} grade updates...`);
+    for (const update of gradeUpdates) {
+        await updateCourseGrades(
+            databases, 
+            DATABASE_ID, 
+            COURSES_COLLECTION, 
+            update.courseId, 
+            update.title, 
+            { score: update.score, total: update.total }
+        );
+    }
 
                      // Look for date in the last columns
                      // We iterate backwards to find a valid ISO-like string or date
@@ -359,6 +466,11 @@ export async function POST(request: NextRequest) {
              }
              
              // Check Status: Skip if already submitted/graded
+             // Actually, user wants grades to be captured (which we did above in gradeUpdates loop)
+             // But they don't want old tasks.
+             // So this filter is correct for TASK CREATION.
+             // We check gsAssign.status? No, we didn't parse status robustly in cheerio.
+             // But valid grades should have been caught above.
              if (gsAssign.isSubmitted) {
                  continue;
              }
