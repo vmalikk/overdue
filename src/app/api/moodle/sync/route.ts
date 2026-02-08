@@ -194,12 +194,19 @@ export async function POST(request: NextRequest) {
                      // Filter out category totals or course totals if desired, or keep them.
                      // Usually itemType='mod' is an assignment/quiz.
                      // IMPORTANT: 'category' items often hold the course total or category total
-                     if ((item.itemtype === 'mod' || item.itemtype === 'course') && item.gradeformatted && item.gradeformatted !== '-' && item.grademax > 0) {
+                     // Forum posts often come as itemtype='mod', but module='forum'
+                     // We should accept almost anything with a valid raw grade.
+                     // Let's broaden the filter to accept any item with a max grade > 0 and a valid raw score.
+                     
+                     if (item.grademax > 0 && item.gradeformatted && item.gradeformatted !== '-' && item.graderaw !== null) {
                          // Parse grade. gradeformatted might be "85.00" or "-"
                          const rawScore = parseFloat(item.graderaw); // graderaw is numeric
                          if (!isNaN(rawScore)) {
                              const itemName = item.itemtype === 'course' ? 'Course Total' : item.itemname;
                              
+                             // Debug log to see what we are catching
+                             console.log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${item.grademax})`);
+
                              await updateCourseGrades(databases, DATABASE_ID, COURSES_COLLECTION, internalCourseId, itemName, {
                                  score: rawScore,
                                  total: item.grademax
