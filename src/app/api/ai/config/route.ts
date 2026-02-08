@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createSessionClient } from '@/lib/appwrite/server'
-import { createAdminClient } from '@/lib/appwrite/admin'
+import { createSessionClient, createAdminClient } from '@/lib/appwrite/server'
 import { encryptToken } from '@/lib/ai/encryption'
 
 export async function POST(request: Request) {

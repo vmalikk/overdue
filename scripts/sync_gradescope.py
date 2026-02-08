@@ -154,19 +154,22 @@ class GradescopeClient:
                 logger.error(f"Failed to fetch course page: {response.status_code}")
                 return []
 
-            # Try to parse as JSON first (if API exists)
+            # Prioritize AI Parsing
+            if gemini_key:
+                logger.info(f"Using Gemini AI to parse assignments for course {course_id}")
+                assignments = self.parse_with_ai(response.text, gemini_key)
+                if assignments:
+                    return assignments
+                logger.warning("AI parsing yielded no results, falling back to standard parsing")
+
+            # Try to parse as JSON (if API exists)
             try:
                 data = response.json()
                 return data.get('assignments', [])
             except:
                 pass
-
-            # AI Parsing
-            if gemini_key:
-                logger.info(f"Using Gemini AI to parse assignments for course {course_id}")
-                return self.parse_with_ai(response.text, gemini_key)
                 
-            logger.warning(f"No Gemini Key - Skipping assignment parsing for {course_id}")
+            logger.warning(f"No Gemini Key or parsing failed - Skipping assignment parsing for {course_id}")
             return []
             
         except Exception as e:
