@@ -218,18 +218,33 @@ export async function POST(request: NextRequest) {
                          log(`[DEBUG ITEM] ${item.itemname}: type=${item.itemtype}, module=${item.itemmodule}, raw=${item.graderaw}, max=${item.grademax}, formatted=${item.gradeformatted}`);
                      }
 
-                     if (item.grademax > 0 && item.gradeformatted && item.gradeformatted !== '-' && item.graderaw !== null) {
-                         // Parse grade. gradeformatted might be "85.00" or "-"
-                         const rawScore = parseFloat(item.graderaw); // graderaw is numeric
+                     // Fix for Moodle 4.x weirdness: sometimes grademax is undefined in the JSON if not set, or 0.
+                     // But we have a raw score! 
+                     // Also, gradeformatted is "100.00" but grademax is undefined.
+                     // If grademax is missing, we can try to infer it from gradeformatted range or default to 100.
+                     // Actually, if grademax is undefined/null, but we have a raw score, we should save it.
+                     
+                     let maxScore = item.grademax;
+                     if (!maxScore || maxScore === 0) {
+                         // Fallback: mostly Moodle items are out of 100 unless specified.
+                         // Or try to parse from rangeformatted if available?
+                         // For now, if raw is 100, let's assume max is 100.
+                         if (item.graderaw > 0) maxScore = 100; 
+                         // Or just default to 100.
+                         else maxScore = 100;
+                     }
+
+                     if (item.gradeformatted && item.gradeformatted !== '-' && item.graderaw !== null) {
+                         // Parse grade.
+                         const rawScore = parseFloat(item.graderaw);
                          if (!isNaN(rawScore)) {
                              const itemName = item.itemtype === 'course' ? 'Course Total' : item.itemname;
                              
-                             // Debug log to see what we are catching
-                             log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${item.grademax})`);
+                             log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${maxScore})`);
 
                              await updateCourseGrades(databases, DATABASE_ID, COURSES_COLLECTION, internalCourseId, itemName, {
                                  score: rawScore,
-                                 total: item.grademax
+                                 total: maxScore
                              });
                              gradesUpdatedCount++;
                          }
