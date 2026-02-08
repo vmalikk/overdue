@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
+import { account } from '@/lib/appwrite/client'
 import { CalendarSyncSection } from './CalendarSyncSection'
 import { GradescopeSyncSection } from './GradescopeSyncSection'
 import { MoodleSyncSection } from './MoodleSyncSection'
@@ -75,10 +76,14 @@ export function SettingsPage() {
       setApiKey(inputKey)
 
       // Save to Backend (Server Sync)
+      const { jwt } = await account.createJWT()
       const res = await fetch('/api/ai/config', {
         method: 'POST',
         body: JSON.stringify({ apiKey: inputKey }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`
+        }
       })
 
       const data = await res.json()
@@ -100,7 +105,13 @@ export function SettingsPage() {
         setApiKey(null)
         setInputKey('')
 
-        await fetch('/api/ai/config', { method: 'DELETE' })
+        const { jwt } = await account.createJWT()
+        await fetch('/api/ai/config', { 
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${jwt}`
+          }
+        })
 
         showToast('API Key removed', 'info')
       } catch (err) {

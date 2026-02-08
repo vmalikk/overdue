@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createSessionClient, createAdminClient } from '@/lib/appwrite/server'
 import { encryptToken } from '@/lib/ai/encryption'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { apiKey } = await request.json()
     if (!apiKey) {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     // Use session client to verify user
-    const { account } = await createSessionClient()
+    const { account } = await createSessionClient(request)
     const user = await account.get()
 
     // Encrypt the API key
@@ -33,9 +33,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { account } = await createSessionClient()
+    const { account } = await createSessionClient(request)
     const user = await account.get()
 
     const { users } = createAdminClient()
