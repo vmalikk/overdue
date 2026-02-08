@@ -77,6 +77,7 @@ class ConnectedUser:
     email: str
     encrypted_token: str
     token_expiry: Optional[datetime] = None
+    encrypted_gemini_key: Optional[str] = None
 
 
 class TokenDecryption:
@@ -141,24 +142,95 @@ class GradescopeClient:
             logger.error(f"Error fetching courses: {e}")
             return []
 
-    def get_assignments(self, course_id: str) -> List[Dict]:
+    def get_assignments(self, course_id: str, gemini_key: Optional[str] = None) -> List[Dict]:
         """Fetch assignments for a specific course"""
         try:
+            # Gradescope assignment page
             response = self.session.get(
-                f"{GRADESCOPE_BASE_URL}/courses/{course_id}/assignments"
+                f"{GRADESCOPE_BASE_URL}/courses/{course_id}"
             )
-            if response.status_code == 200:
-                # Try to parse as JSON
-                try:
-                    data = response.json()
-                    return data.get('assignments', [])
-                except:
-                    # HTML response - would need scraping
-                    pass
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to fetch course page: {response.status_code}")
+                return []
 
+            # Try to parse as JSON first (if API exists)
+            try:
+                data = response.json()
+                return data.get('assignments', [])
+            except:
+                pass
+
+            # AI Parsing
+            if gemini_key:
+                logger.info(f"Using Gemini AI to parse assignments for course {course_id}")
+                return self.parse_with_ai(response.text, gemini_key)
+                
+            logger.warning(f"No Gemini Key - Skipping assignment parsing for {course_id}")
             return []
+            
         except Exception as e:
             logger.error(f"Error fetching assignments for course {course_id}: {e}")
+            return []
+
+    def parse_with_ai(self, html_content: str, api_key: str) -> List[Dict]:
+        """Parse HTML using Gemini"""
+        import re
+        
+        # Clean HTML
+        clean_html = re.sub(r'<script\b[^>]*>[\s\S]*?</script>', '', html_content)
+        clean_html = re.sub(r'<style\b[^>]*>[\s\S]*?</style>', '', clean_html)
+        clean_html = re.sub(r'<svg\b[^>]*>[\s\S]*?</svg>', '', clean_html)
+        
+        prompt = """
+        Extract assignments from this Gradescope course page HTML.
+        Return a JSON object with a key "assignments" containing a list.
+        Each item must have:
+        - id: string (assignment ID, derived from link e.g. /courses/X/assignments/Y -> Y)
+        - title: string
+        - due_date: ISO 8601 string (Assume year {year} if missing)
+        - score: number or null
+        - total_points: number or null
+        - status: string
+        """
+        
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        
+        current_year = datetime.now().year
+        final_prompt = prompt.format(year=current_year)
+        
+        payload = {
+            "contents": [{
+                "parts": [{"text": final_prompt}, {"text": clean_html[:100000]}] 
+            }]
+        }
+        
+        try:
+            res = requests.post(api_url, json=payload, headers={'Content-Type': 'application/json'})
+            if res.status_code != 200:
+                logger.error(f"Gemini API Error: {res.text}")
+                return []
+                
+            result = res.json()
+            if 'candidates' not in result or not result['candidates']:
+                return []
+                
+            text = result['candidates'][0]['content']['parts'][0]['text']
+            
+            # Extract JSON
+            match = re.search(r'```json\s*({.*})\s*```', text, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+            else:
+                start = text.find('{')
+                end = text.rfind('}') + 1
+                json_str = text[start:end] if start != -1 else "{}"
+            
+            data = json.loads(json_str)
+            return data.get('assignments', [])
+            
+        except Exception as e:
+            logger.error(f"AI Parse Error: {e}")
             return []
 
     def verify_session(self) -> bool:
@@ -231,7 +303,8 @@ class GradescopeSyncer:
                             id=user['$id'],
                             email=prefs.get('gradescopeEmail', 'unknown'),
                             encrypted_token=prefs['gradescopeSessionToken'],
-                            token_expiry=token_expiry
+                            token_expiry=token_expiry,
+                            encrypted_gemini_key=prefs.get('geminiApiKey')
                         ))
 
                 # Check if there are more users
@@ -593,17 +666,31 @@ class GradescopeSyncer:
                         internal_course_id = ic['$id']
                         break
 
-                assignments = gs_client.get_assignments(course_id)
+                # Decrypt Gemini Key (if available for this user)
+                gemini_key = None
+                if user.encrypted_gemini_key:
+                    try:
+                        gemini_key = self.decryptor.decrypt(user.encrypted_gemini_key)
+                    except:
+                        pass
+
+                assignments = gs_client.get_assignments(course_id, gemini_key)
                 logger.info(f"Found {len(assignments)} assignments in {course_name}")
 
                 for assignment_data in assignments:
                     try:
-                        # Parse deadline
+                        # Parse deadline (handle different formats from AI or API)
                         deadline_str = assignment_data.get('due_date') or assignment_data.get('due_at')
                         if not deadline_str:
                             continue
 
-                        deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+                        # Clean up ISO string from AI (might have Z or offset)
+                        deadline_str = deadline_str.replace('Z', '+00:00')
+                        try:
+                            deadline = datetime.fromisoformat(deadline_str)
+                        except:
+                            # Fallback parsing
+                            continue
                         
                         points_possible = assignment_data.get('total_points')
                         if points_possible is None:

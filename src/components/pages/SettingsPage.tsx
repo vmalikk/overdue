@@ -18,6 +18,7 @@ export function SettingsPage() {
   const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'gradescope' | 'moodle' | 'ai'>('general')
   const [inputKey, setInputKey] = useState('')
   const [isKeyVisible, setIsKeyVisible] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   // Sync apiKey to input when it changes or when section changes
   useEffect(() => {
@@ -58,7 +59,7 @@ export function SettingsPage() {
     }
   }
 
-  const handleSaveKey = () => {
+  const handleSaveKey = async () => {
     if (!inputKey.trim()) {
       showToast('Please enter a valid API key', 'error')
       return
@@ -68,15 +69,44 @@ export function SettingsPage() {
       showToast('That doesn\'t look like a valid Gemini API key', 'warning')
     }
 
-    setApiKey(inputKey)
-    showToast('API Key saved successfully!', 'success')
+    setIsLoading(true)
+    try {
+      // Save to Local (Client features)
+      setApiKey(inputKey)
+
+      // Save to Backend (Server Sync)
+      const res = await fetch('/api/ai/config', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey: inputKey }),
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!res.ok) throw new Error('Failed to sync key to server')
+
+      showToast('API Key saved and synced!', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('Saved locally, but server sync failed.', 'warning')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleClearKey = () => {
+  const handleClearKey = async () => {
     if (confirm('Are you sure you want to remove your API key? AI features will be disabled.')) {
-      setApiKey(null)
-      setInputKey('')
-      showToast('API Key removed', 'info')
+      setIsLoading(true)
+      try {
+        setApiKey(null)
+        setInputKey('')
+
+        await fetch('/api/ai/config', { method: 'DELETE' })
+
+        showToast('API Key removed', 'info')
+      } catch (err) {
+        showToast('Key removed locally', 'info')
+      } finally {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -314,12 +344,12 @@ export function SettingsPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button variant="primary" onClick={handleSaveKey}>
-                Save API Key
+              <Button variant="primary" onClick={handleSaveKey} disabled={isLoading}>
+                {isLoading ? 'Saving...' : 'Save API Key'}
               </Button>
               {apiKey && (
-                <Button variant="danger" onClick={handleClearKey}>
-                  Remove Key
+                <Button variant="danger" onClick={handleClearKey} disabled={isLoading}>
+                  {isLoading ? 'Removing...' : 'Remove Key'}
                 </Button>
               )}
             </div>
