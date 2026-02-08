@@ -286,10 +286,11 @@ export async function POST(request: NextRequest) {
                      const isCategoryTotal = item.itemtype === 'category';
                      const isCourseTotal = item.itemtype === 'course';
                      
-                     if (isCategoryTotal) {
-                         // Skip category totals to avoid the "300/100" weirdness showing up as a separate assignment
-                         // The individual forum posts (graded 100/100) are already being imported.
-                         log(`Moodle Sync: Skipping category total: ${item.itemname}`);
+                     if (isCategoryTotal || isCourseTotal) {
+                         // Skip category totals and course totals.
+                         // Category totals cause double counting (e.g. "Group Discussion total" 300/100).
+                         // Course totals (e.g. 10/100) are treated as assignments and tank the grade because the app calculates its own total.
+                         log(`Moodle Sync: Skipping total item: ${item.itemname || 'Course Total'} (type=${item.itemtype})`);
                          continue;
                      }
 
