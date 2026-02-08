@@ -188,13 +188,15 @@ class GradescopeClient:
         prompt = """
         Extract assignments from this Gradescope course page HTML.
         Return a JSON object with a key "assignments" containing a list.
+        Include ALL assignments, whether pending, submitted, or graded.
+        
         Each item must have:
-        - id: string (assignment ID, derived from link e.g. /courses/X/assignments/Y -> Y)
+        - id: string (assignment ID)
         - title: string
-        - due_date: ISO 8601 string (Assume year {year} if missing)
-        - score: number or null
+        - due_date: ISO 8601 string (Assume year {year} if missing. If completely missing but status is "Graded", estimate 1 month ago)
+        - score: number or null (Look for "X / Y" patterns)
         - total_points: number or null
-        - status: string
+        - status: string ("Submitted", "Graded", "No Submission", etc)
         """
         
         api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
@@ -684,7 +686,13 @@ class GradescopeSyncer:
                     try:
                         # Parse deadline (handle different formats from AI or API)
                         deadline_str = assignment_data.get('due_date') or assignment_data.get('due_at')
+                        
+                        # Fallback for graded assignments without deadline (using dummy past date to allow grade processing)
+                        if not deadline_str and assignment_data.get('status') == 'Graded':
+                            deadline_str = f"{datetime.now().year}-01-01T00:00:00+00:00"
+
                         if not deadline_str:
+                            logger.warning(f"Skipping {assignment_data.get('title')} - No deadline found")
                             continue
 
                         # Clean up ISO string from AI (might have Z or offset)
@@ -715,9 +723,15 @@ class GradescopeSyncer:
                         )
                         
                         # Update course grades if score exists and course matched
-                        if gs_assignment.score is not None and internal_course_id:
-                            total = gs_assignment.points_possible if gs_assignment.points_possible else 100.0
-                            self.update_course_grades(internal_course_id, gs_assignment.title, gs_assignment.score, total)
+                        if gs_assignment.score is not None:
+                            if internal_course_id:
+                                total = gs_assignment.points_possible if gs_assignment.points_possible else 100.0
+                                logger.info(f"Updating grade for {gs_assignment.title}: {gs_assignment.score}/{total}")
+                                self.update_course_grades(internal_course_id, gs_assignment.title, gs_assignment.score, total)
+                            else:
+                                logger.warning(f"Could not link course '{course_name}' to any internal course. Grade for '{gs_assignment.title}' not saved.")
+                        else:
+                            logger.info(f"No score found for {gs_assignment.title}")
 
                         # Check if already tracked by gradescopeId
                         existing_match = self.find_by_gradescope_id(
