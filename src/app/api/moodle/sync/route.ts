@@ -13,7 +13,7 @@ function normalize(str: string): string {
 }
 
 // Helper to update course grades (replicated from gradescope sync logic)
-async function updateCourseGrades(databases: any, dbId: string, collId: string, courseId: string, title: string, grade: { score: number, total: number }) {
+async function updateCourseGrades(databases: any, dbId: string, collId: string, courseId: string, title: string, grade: { score: number, total: number }, categoryHint?: string) {
     try {
         const course = await databases.getDocument(dbId, collId, courseId);
         let gradedItems = course.gradedItems ? JSON.parse(course.gradedItems) : [];
@@ -34,7 +34,20 @@ async function updateCourseGrades(databases: any, dbId: string, collId: string, 
         } else {
             // Create
             let category = "Imported";
-            if (gradeWeights && gradeWeights.length > 0) {
+            
+            // Try to match using categoryHint first
+            let matchedCategory = false;
+            if (categoryHint && gradeWeights.length > 0) {
+                // normalized comparisons
+                const hint = normalize(categoryHint);
+                const weightMatch = gradeWeights.find((gw: any) => normalize(gw.category) === hint || hint.includes(normalize(gw.category)));
+                if (weightMatch) {
+                    category = weightMatch.category;
+                    matchedCategory = true;
+                }
+            }
+
+            if (!matchedCategory && gradeWeights && gradeWeights.length > 0) {
                  const match = gradeWeights.find((gw: any) => {
                      const c = gw.category.toLowerCase();
                      const t = title.toLowerCase();
@@ -46,11 +59,33 @@ async function updateCourseGrades(databases: any, dbId: string, collId: string, 
                      if (c === 'homework' && (t.includes('hw') || t.includes('assignment'))) return true;
                      if (c === 'labs' && t.includes('lab')) return true;
                      if (c === 'projects' && t.includes('project')) return true;
+                     if ((c === 'attendance' || c === 'participation') && (t.includes('attendance') || t.includes('participation'))) return true;
                      if (c.endsWith('s') && t.includes(c.slice(0, -1))) return true;
                      return false;
                  });
-                 if (match) category = match.category;
-                 else category = gradeWeights[0].category;
+                 
+                 if (match) {
+                     category = match.category;
+                 } else if (categoryHint) {
+                     category = categoryHint;
+                 } else {
+                     // Heuristics for common categories even if not in weights
+                     const t = title.toLowerCase();
+                     if (t.includes('attendance') || t.includes('participation')) category = 'Attendance';
+                     else if (t.includes('quiz')) category = 'Quizzes';
+                     else if (t.includes('exam')) category = 'Exams';
+                     else if (t.includes('project')) category = 'Projects';
+                     else if (t.includes('lab')) category = 'Labs';
+                     else category = gradeWeights[0].category; // Fallback to first weight as last resort
+                 }
+            } else if (!matchedCategory && categoryHint) {
+                 category = categoryHint; // Use the Moodle category name if no weights defined
+            } else if (!matchedCategory) {
+                 // No weights, no hint: heuristic check
+                 const t = title.toLowerCase();
+                 if (t.includes('attendance') || t.includes('participation')) category = 'Attendance';
+                 else if (t.includes('quiz')) category = 'Quizzes';
+                 else category = "Imported";
             }
 
             gradedItems.push({
@@ -202,9 +237,22 @@ export async function POST(request: NextRequest) {
              });
              
              if (gradeData.usergrades && gradeData.usergrades[0]) {
-                 const gradeItems = gradeData.usergrades[0].gradeitems;
+                 const gradeItems = gradeData.usergrades[0].gradeitems || [];
                  log(`Moodle Sync: Found ${gradeItems.length} grade items for ${course.shortname}`);
                  
+                 // Pass 1: Extract Category Names from category totals
+                 const categoryMap = new Map<number, string>();
+                 for (const item of gradeItems) {
+                     // Moodle returns itemtype='category' for category totals. 
+                     // iteminstance usually matches the category ID used by children items (in item.categoryid)
+                     if (item.itemtype === 'category' && item.iteminstance) {
+                         const name = item.itemname ? item.itemname.replace(/ total$/i, '').trim() : '';
+                         if (name && name !== 'Course') {
+                             categoryMap.set(item.iteminstance, name);
+                         }
+                     }
+                 }
+
                  for (const item of gradeItems) {
                      // Filter out category totals or course totals if desired, or keep them.
                      // Usually itemType='mod' is an assignment/quiz.
@@ -216,6 +264,33 @@ export async function POST(request: NextRequest) {
                      // Debug logging for specific investigation
                      if ((item.itemname || '').toLowerCase().includes('forum') || (item.itemname || '').toLowerCase().includes('introduction')) {
                          log(`[DEBUG ITEM] ${item.itemname}: type=${item.itemtype}, module=${item.itemmodule}, raw=${item.graderaw}, max=${item.grademax}, formatted=${item.gradeformatted}`);
+                     }
+
+                     // Check for "Group Discussion total" or other category totals
+                     // Moodle returns item.itemtype = 'category' for these.
+                     // The itemname often contains "total".
+                     
+                     // Skip if it's the "Course total" unless we explicitly want only that.
+                     // But user wants details.
+                     // Wait, in the screenshot, "300/100" is likely "Group Discussion total" where max is actually 300? 
+                     // Or maybe the weights are confusing it.
+                     // Ah, 3 posts @ 100 each = 300 total points in the category? 
+                     // Moodle output: 300.00 (Grade) / 100.00 % (Percentage?) No.
+                     
+                     // Let's refine the logic:
+                     // 1. Ignore "Category total" items if we are already syncing the individual items.
+                     //    (The "300/100" entry is likely a category total that looks weird).
+                     //    If itemtype is 'category', we might want to skip it to avoid double counting or confusion,
+                     //    unless it's the specific "Course Total".
+                     
+                     const isCategoryTotal = item.itemtype === 'category';
+                     const isCourseTotal = item.itemtype === 'course';
+                     
+                     if (isCategoryTotal) {
+                         // Skip category totals to avoid the "300/100" weirdness showing up as a separate assignment
+                         // The individual forum posts (graded 100/100) are already being imported.
+                         log(`Moodle Sync: Skipping category total: ${item.itemname}`);
+                         continue;
                      }
 
                      // Fix for Moodle 4.x weirdness: sometimes grademax is undefined in the JSON if not set, or 0.
@@ -239,13 +314,14 @@ export async function POST(request: NextRequest) {
                          const rawScore = parseFloat(item.graderaw);
                          if (!isNaN(rawScore)) {
                              const itemName = item.itemtype === 'course' ? 'Course Total' : item.itemname;
+                             const categoryHint = item.categoryid ? categoryMap.get(item.categoryid) : undefined;
                              
-                             log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${maxScore})`);
+                             log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${maxScore}) [Cat: ${categoryHint || 'None'}]`);
 
                              await updateCourseGrades(databases, DATABASE_ID, COURSES_COLLECTION, internalCourseId, itemName, {
                                  score: rawScore,
                                  total: maxScore
-                             });
+                             }, categoryHint);
                              gradesUpdatedCount++;
                          }
                      }

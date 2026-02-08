@@ -95,14 +95,40 @@ async function updateCourseGrades(databases: any, dbId: string, collId: string, 
             
             if (gradeWeights.length > 0) {
                 // Find matching category
-                const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
+                const match = gradeWeights.find((gw: any) => {
+                     const c = gw.category.toLowerCase();
+                     const t = title.toLowerCase();
+                     if (t.includes(c)) return true;
+                     if (c === 'quizzes' && t.includes('quiz')) return true;
+                     if (c === 'tests' && t.includes('test')) return true;
+                     if (c === 'exams' && (t.includes('exam') || t.includes('midterm') || t.includes('final'))) return true;
+                     if (c === 'assignments' && (t.includes('assignment') || t.includes('hw') || t.includes('homework'))) return true;
+                     if (c === 'homework' && (t.includes('hw') || t.includes('assignment'))) return true;
+                     if (c === 'labs' && t.includes('lab')) return true;
+                     if (c === 'projects' && t.includes('project')) return true;
+                     if ((c === 'attendance' || c === 'participation') && (t.includes('attendance') || t.includes('participation'))) return true;
+                     if (c.endsWith('s') && t.includes(c.slice(0, -1))) return true;
+                     return false;
+                });
+
                 if (match) {
                     category = match.category;
                 } else {
-                    category = gradeWeights[0].category; // Fallback to first
+                     // Heuristics if user defined weights don't match
+                     const t = title.toLowerCase();
+                     if (t.includes('attendance') || t.includes('participation')) category = 'Attendance';
+                     else if (t.includes('quiz')) category = 'Quizzes';
+                     else if (t.includes('exam')) category = 'Exams';
+                     else if (t.includes('project')) category = 'Projects';
+                     else category = gradeWeights[0].category; // Fallback to first
                 }
             } else {
-                category = "Assignments";
+                // No weights defined
+                const t = title.toLowerCase();
+                if (t.includes('attendance') || t.includes('participation')) category = 'Attendance';
+                else if (t.includes('quiz')) category = 'Quizzes';
+                else if (t.includes('exam')) category = 'Exams';
+                else category = "Assignments";
             }
 
             // Fallback for empty array check above
