@@ -11,7 +11,7 @@ const GRADESCOPE_BASE_URL = "https://www.gradescope.com"
 
 // Helper to normalize strings for comparison (remove spaces, lowercase, punctuation)
 function normalize(str: string): string {
-    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 // Helper to find internally stored course that matches Gradescope course
@@ -21,6 +21,9 @@ function findInternalCourseId(gsCourse: { name: string, shortName: string }, int
     // Clean them both up
     const gsCodeClean = normalize(gsCourse.shortName);
     
+    // Safety check just in case
+    if (!internalCourses || !Array.isArray(internalCourses)) return '';
+
     for (const internal of internalCourses) {
         const intCodeClean = normalize(internal.code);
         // If one contains the other (since GS often appends section numbers)
@@ -231,6 +234,26 @@ export async function POST(request: NextRequest) {
     });
 
     log(`Gradescope Sync: Found ${courses.length} courses`);
+
+    // Initialize DB client early for internal course lookups
+    const { databases, account } = await createSessionClient(request);
+    
+    // Fetch internal courses to link assignments
+    let internalCourses: any[] = [];
+    try {
+        const coursesRes = await databases.listDocuments(
+            DATABASE_ID,
+            COURSES_COLLECTION,
+            [Query.equal('userId', user.$id)]
+        );
+        internalCourses = coursesRes.documents;
+        
+        // Log available internal courses for debug
+        const courseDebug = internalCourses.map(c => `${c.code} (${c.$id})`).join(', ');
+        log(`Gradescope Sync: Internal courses available: ${courseDebug}`);
+    } catch (e) {
+        log(`Gradescope Sync: Failed to fetch internal courses: ${e}`);
+    }
     
     // 2. Fetch Assignments for all courses
     let allGsAssignments: any[] = [];
@@ -367,25 +390,79 @@ export async function POST(request: NextRequest) {
 
     log(`Gradescope Sync: Found ${allGsAssignments.length} assignments total`);
 
-    // 3. Sync with Appwrite
-    const { databases, account } = await createSessionClient(request);
-    
-    // Fetch internal courses to link assignments
-    let internalCourses: any[] = [];
-    try {
-        const coursesRes = await databases.listDocuments(
-            DATABASE_ID,
-            COURSES_COLLECTION,
-            [Query.equal('userId', user.$id)]
-        );
-        internalCourses = coursesRes.documents;
-        
-        // Log available internal courses for debug
-        const courseDebug = internalCourses.map(c => `${c.code} (${c.$id})`).join(', ');
-        log(`Gradescope Sync: Internal courses available: ${courseDebug}`);
-    } catch (e) {
-        log(`Gradescope Sync: Failed to fetch internal courses: ${e}`);
+    // Process captured grades (Bulk Update)
+    // Group by course to minimize DB calls
+    const updatesByCourse: Record<string, any[]> = {};
+    for (const update of gradeUpdates) {
+        if (!updatesByCourse[update.courseId]) {
+            updatesByCourse[update.courseId] = [];
+        }
+        updatesByCourse[update.courseId].push(update);
     }
+    
+    log(`Gradescope Sync: Processing grade updates for ${Object.keys(updatesByCourse).length} courses`);
+
+    for (const [cId, updates] of Object.entries(updatesByCourse)) {
+        try {
+            // Find in already-fetched internal courses
+            let currentDef = internalCourses.find((c: any) => c.$id === cId);
+            
+            // Fallback fetch if somehow missing (safety)
+            if (!currentDef) {
+                 currentDef = await databases.getDocument(DATABASE_ID, COURSES_COLLECTION, cId);
+            }
+
+            let gradedItems = currentDef.gradedItems ? JSON.parse(currentDef.gradedItems) : [];
+            if (!Array.isArray(gradedItems)) gradedItems = [];
+            
+            let gradeWeights = currentDef.gradeWeights ? JSON.parse(currentDef.gradeWeights) : [];
+
+            let changed = false;
+            
+            for (const up of updates) {
+                const title = up.title;
+                const existingIndex = gradedItems.findIndex((i: any) => i.name === title);
+                
+                if (existingIndex >= 0) {
+                    if (gradedItems[existingIndex].score !== up.score || gradedItems[existingIndex].total !== up.total) {
+                        gradedItems[existingIndex].score = up.score;
+                        gradedItems[existingIndex].total = up.total;
+                        changed = true;
+                    }
+                } else {
+                     // New Item
+                     let category = "Assignments"; 
+                     if (gradeWeights && gradeWeights.length > 0) {
+                        const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
+                        if (match) category = match.category;
+                        else category = gradeWeights[0].category;
+                     }
+                     
+                     gradedItems.push({
+                        id: Math.random().toString(36).substring(2, 9),
+                        category: category,
+                        name: title,
+                        score: up.score,
+                        total: up.total
+                     });
+                     changed = true;
+                }
+            }
+            
+            if (changed) {
+                await databases.updateDocument(DATABASE_ID, COURSES_COLLECTION, cId, {
+                    gradedItems: JSON.stringify(gradedItems)
+                });
+                log(`Gradescope Sync: Updated grades for course ${cId}`);
+            }
+        } catch (e) {
+            log(`Gradescope Sync: Failed to update grades for course ${cId}: ${e}`);
+        }
+    }
+
+    // 3. Sync with Appwrite
+    // (Client and Internal Courses initialized at start)
+
 
     // Fetch existing Gradescope assignments for this user
     // We limit to 100/page. If user has more, we should paginate. 
