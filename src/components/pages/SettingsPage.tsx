@@ -81,12 +81,13 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json' }
       })
 
-      if (!res.ok) throw new Error('Failed to sync key to server')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to sync key to server')
 
       showToast('API Key saved and synced!', 'success')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      showToast('Saved locally, but server sync failed.', 'warning')
+      showToast(`Saved locally, but server sync failed: ${err.message}`, 'error')
     } finally {
       setIsLoading(false)
     }

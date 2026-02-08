@@ -24,9 +24,12 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving API Key:', error)
-    return NextResponse.json({ error: 'Failed to save API Key' }, { status: 500 })
+    return NextResponse.json({ 
+      error: error.message || 'Failed to save API Key',
+      details: error.toString() 
+    }, { status: 500 })
   }
 }
 
