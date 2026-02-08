@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { account } from '@/lib/appwrite/client'
 
 export interface MoodleConfig {
   connected: boolean
@@ -97,12 +98,33 @@ export const useMoodleStore = create<MoodleStore>()(
       clearError: () => set({ error: null }),
 
       checkStatus: async () => {
-        // Implement status check against server if needed
-        // For now, rely on persisted state, but maybe verify?
-        const { config } = get()
-        if (config.connected) {
-             set({ status: MoodleStatus.CONNECTED })
+        try {
+            // Check against server to see if user has stored credentials (encrypted in prefs)
+            const { jwt } = await account.createJWT();
+            const res = await fetch('/api/moodle/connect', {
+                headers: { 'Authorization': `Bearer ${jwt}` }
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data.connected) {
+                    set((state) => ({
+                        config: { ...state.config, connected: true, url: data.url, username: data.username },
+                        status: MoodleStatus.CONNECTED
+                    }));
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Moodle status check failed", e);
         }
+
+        // Fallback: If server check returns false or fails, we trust the server says "not connected"
+        // typically, but let's clear local state if server says no.
+        set((state) => ({
+             config: { ...state.config, connected: false },
+             status: MoodleStatus.IDLE
+        }));
       }
     }),
     {

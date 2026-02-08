@@ -40,12 +40,21 @@ Save this key - you'll need it for both local development and GitHub Actions.
 
 Add the following attributes to your existing `assignment` collection in Appwrite Console:
 
-| Attribute | Type | Required | Default |
-|-----------|------|----------|---------|
-| `source` | String | No | `manual` |
-| `gradescopeId` | String | No | - |
-| `gradescopeCourseId` | String | No | - |
-| `gradescopeCourseName` | String | No | - |
+| Attribute | Type | Size | Required | Default |
+|-----------|------|------|----------|---------|
+| `source` | String | 255 | No | `manual` |
+| `gradescopeId` | String | 255 | No | - |
+| `gradescopeCourseId` | String | 255 | No | - |
+| `gradescopeCourseName` | String | 255 | No | - |
+
+#### Update `courses` Collection
+
+Add the following attributes to your `courses` collection to support grade storage:
+
+| Attribute | Type | Size | Required | Description |
+|-----------|------|------|----------|-------------|
+| `gradedItems` | String | 100000 | No | Stores JSON array of graded items |
+| `gradeWeights` | String | 5000 | No | Stores JSON array of grade categories |
 
 #### Create `conflicts` Collection
 

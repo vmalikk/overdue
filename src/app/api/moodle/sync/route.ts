@@ -12,6 +12,68 @@ function normalize(str: string): string {
     return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Helper to update course grades (replicated from gradescope sync logic)
+async function updateCourseGrades(databases: any, dbId: string, collId: string, courseId: string, title: string, grade: { score: number, total: number }) {
+    try {
+        const course = await databases.getDocument(dbId, collId, courseId);
+        let gradedItems = course.gradedItems ? JSON.parse(course.gradedItems) : [];
+        if (!Array.isArray(gradedItems)) gradedItems = [];
+        let gradeWeights = course.gradeWeights ? JSON.parse(course.gradeWeights) : [];
+
+        // Check if item exists
+        const existingIndex = gradedItems.findIndex((i: any) => i.name === title);
+        
+        let changed = false;
+        if (existingIndex >= 0) {
+            // Update if changed
+            if (gradedItems[existingIndex].score !== grade.score || gradedItems[existingIndex].total !== grade.total) {
+                gradedItems[existingIndex].score = grade.score;
+                gradedItems[existingIndex].total = grade.total;
+                changed = true;
+            }
+        } else {
+            // Create
+            let category = "Imported";
+            if (gradeWeights && gradeWeights.length > 0) {
+                 const match = gradeWeights.find((gw: any) => {
+                     const c = gw.category.toLowerCase();
+                     const t = title.toLowerCase();
+                     if (t.includes(c)) return true;
+                     if (c === 'quizzes' && t.includes('quiz')) return true;
+                     if (c === 'tests' && t.includes('test')) return true;
+                     if (c === 'exams' && (t.includes('exam') || t.includes('midterm') || t.includes('final'))) return true;
+                     if (c === 'assignments' && (t.includes('assignment') || t.includes('hw') || t.includes('homework'))) return true;
+                     if (c === 'homework' && (t.includes('hw') || t.includes('assignment'))) return true;
+                     if (c === 'labs' && t.includes('lab')) return true;
+                     if (c === 'projects' && t.includes('project')) return true;
+                     if (c.endsWith('s') && t.includes(c.slice(0, -1))) return true;
+                     return false;
+                 });
+                 if (match) category = match.category;
+                 else category = gradeWeights[0].category;
+            }
+
+            gradedItems.push({
+                id: Math.random().toString(36).substring(2, 9),
+                category: category,
+                name: title,
+                score: grade.score,
+                total: grade.total
+            });
+            changed = true;
+        }
+
+        if (changed) {
+            await databases.updateDocument(dbId, collId, courseId, {
+                gradedItems: JSON.stringify(gradedItems)
+            });
+            console.log(`Updated Moodle grades for course ${courseId}`);
+        }
+    } catch (e) {
+        console.error("Failed to update grades for course", courseId, e);
+    }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request)
@@ -64,8 +126,98 @@ export async function POST(request: NextRequest) {
     const courses = coursesData as any[]; // Array of courses
     console.log(`Moodle Sync: Found ${courses.length} courses`)
 
+    // 2. Fetch Grades (NEW: Before Assignments)
+    // gradereport_user_get_grade_items
+    try {
+        console.log(`Moodle Sync: Fetching grades...`)
+        // Try getting grades for all courses. Some Moodle configs require courseid per call.
+        // Let's iterate courses and fetch grades for linked courses
+        for (const course of courses) {
+             // Link to internal first to see if we care
+             const mCodeClean = normalize(course.shortname);
+             const mNameClean = normalize(course.fullname);
+             let internalCourseId = '';
+             let internalCourseCode = '';
+
+             // Re-fetch or pass internalCourses? We need them.
+             // We can't use internalCourses here easily because it's fetched later.
+             // Let's assume we will filter later? No, better to fetch internal first.
+        }
+    } catch (e) {
+        console.error("Moodle Grade Fetch Error", e);
+    }
+    
+    // 3. Sync with Appwrite (MOVED UP to use for course linking in grade sync)
+    const { databases } = await createSessionClient(request)
+    
+    // Fetch internal courses
+    let internalCourses: any[] = [];
+    try {
+        const coursesRes = await databases.listDocuments(
+            DATABASE_ID,
+            COURSES_COLLECTION,
+            [Query.equal('userId', user.$id)]
+        );
+        internalCourses = coursesRes.documents;
+    } catch (e) {
+        console.error('Failed to fetch internal courses', e)
+    }
+
+    // Now fetch grades
+    let gradesUpdatedCount = 0;
+    try {
+        for (const course of courses) {
+             // Check if this Moodle course matches an Internal Course
+             const mCodeClean = normalize(course.shortname);
+             const mNameClean = normalize(course.fullname);
+             let internalCourseId = '';
+
+             for (const internal of internalCourses) {
+                const iCode = normalize(internal.code);
+                const iName = normalize(internal.name);
+                if (mCodeClean.includes(iCode) || iCode.includes(mCodeClean) || mNameClean === iName) {
+                    internalCourseId = internal.$id;
+                    break;
+                }
+             }
+
+             if (!internalCourseId) continue; // Skip unlinked courses
+
+             const gradeData = await moodleCall('gradereport_user_get_grade_items', { 
+                 courseid: course.id,
+                 userid: userid 
+             });
+             
+             if (gradeData.usergrades && gradeData.usergrades[0]) {
+                 const gradeItems = gradeData.usergrades[0].gradeitems;
+                 for (const item of gradeItems) {
+                     // Filter out category totals or course totals if desired, or keep them.
+                     // Usually itemType='mod' is an assignment/quiz.
+                     // IMPORTANT: 'category' items often hold the course total or category total
+                     if ((item.itemtype === 'mod' || item.itemtype === 'course') && item.gradeformatted && item.gradeformatted !== '-' && item.grademax > 0) {
+                         // Parse grade. gradeformatted might be "85.00" or "-"
+                         const rawScore = parseFloat(item.graderaw); // graderaw is numeric
+                         if (!isNaN(rawScore)) {
+                             const itemName = item.itemtype === 'course' ? 'Course Total' : item.itemname;
+                             
+                             await updateCourseGrades(databases, DATABASE_ID, COURSES_COLLECTION, internalCourseId, itemName, {
+                                 score: rawScore,
+                                 total: item.grademax
+                             });
+                             gradesUpdatedCount++;
+                         }
+                     }
+                 }
+             } else {
+                 console.log(`Moodle Sync: No user grades found for course ${course.shortname}`);
+             }
+        }
+    } catch (e) {
+        console.error("Moodle Grade Sync Failed", e);
+    }
+
+
     // 2. Fetch Assignments
-    // mod_assign_get_assignments
     // Note: older moodles might not return 'assignments' directly if no courses passed?
     // Usually fetching for all enrolled courses works if we don't pass courseids (or pass all)
     // Actually documentation says "Returns the courses and assignments for the users capability"
@@ -123,21 +275,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`Moodle Sync: Found ${allMoodleAssignments.length} total assignments`)
 
-    // 3. Sync with Appwrite
-    const { databases } = await createSessionClient(request)
-    
-    // Fetch internal courses
-    let internalCourses: any[] = [];
-    try {
-        const coursesRes = await databases.listDocuments(
-            DATABASE_ID,
-            COURSES_COLLECTION,
-            [Query.equal('userId', user.$id)]
-        );
-        internalCourses = coursesRes.documents;
-    } catch (e) {
-        console.error('Failed to fetch internal courses', e)
-    }
+    // 4. Sync Assignments with Appwrite
+    // (We already have databases client and internalCourses from step 3)
 
     const startSync = new Date();
     const todayMidnight = new Date(startSync.getFullYear(), startSync.getMonth(), startSync.getDate()).getTime() / 1000; // Seconds

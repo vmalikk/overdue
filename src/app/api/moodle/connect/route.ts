@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, createSessionClient } from '@/lib/appwrite/server'
-import { encryptData } from '@/lib/moodle/encryption' 
+import { encryptData, decryptData } from '@/lib/moodle/encryption' 
+
+export async function GET(request: NextRequest) {
+    try {
+        const user = await getCurrentUser(request)
+        if (!user) {
+            return NextResponse.json({ connected: false })
+        }
+        
+        if (user.prefs.moodleSessionData) {
+            try {
+                const sessionStr = decryptData(user.prefs.moodleSessionData)
+                const session = JSON.parse(sessionStr)
+                return NextResponse.json({ 
+                    connected: true, 
+                    url: session.url,
+                    username: session.username || 'Connected User'
+                })
+            } catch (e) {
+                console.error("Failed to decrypt moodle session", e)
+                return NextResponse.json({ connected: false })
+            }
+        }
+        
+        return NextResponse.json({ connected: false })
+    } catch (e) {
+        return NextResponse.json({ connected: false, error: String(e) }, { status: 500 })
+    }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,7 +107,8 @@ export async function POST(request: NextRequest) {
     const sessionData = JSON.stringify({
         token,
         url: cleanUrl,
-        userid
+        userid,
+        username
     })
 
     const encryptedToken = encryptData(sessionData)

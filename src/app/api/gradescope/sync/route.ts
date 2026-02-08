@@ -458,7 +458,29 @@ export async function POST(request: NextRequest) {
                 // Determine category
                 let category = "Imported"; 
                 if (gradeWeights && gradeWeights.length > 0) {
-                    const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
+                    // Try to match title to category with smart singular/plural detection
+                    const match = gradeWeights.find((gw: any) => {
+                         const c = gw.category.toLowerCase();
+                         const t = title.toLowerCase();
+                         
+                         // 1. Direct containment (e.g. "Homework 1" contains "Homework")
+                         if (t.includes(c)) return true;
+                         
+                         // 2. Common variations and singular forms
+                         if (c === 'quizzes' && t.includes('quiz')) return true;
+                         if (c === 'tests' && t.includes('test')) return true;
+                         if (c === 'exams' && (t.includes('exam') || t.includes('midterm') || t.includes('final'))) return true;
+                         if (c === 'assignments' && (t.includes('assignment') || t.includes('hw') || t.includes('homework'))) return true;
+                         if (c === 'homework' && (t.includes('hw') || t.includes('assignment'))) return true;
+                         if (c === 'labs' && t.includes('lab')) return true;
+                         if (c === 'projects' && t.includes('project')) return true;
+                         
+                         // 3. Generic trailing 's' check (e.g. "Presentations" contains "Presentation")
+                         if (c.endsWith('s') && t.includes(c.slice(0, -1))) return true;
+
+                         return false;
+                    });
+
                     if (match) category = match.category;
                     else category = gradeWeights[0].category;
                 }
@@ -490,8 +512,13 @@ export async function POST(request: NextRequest) {
                 log(`Gradescope Sync: Updated grades for course ${currentDef.code}`);
                 gradesUpdatedCount++;
             }
-        } catch (e) {
+        } catch (e: any) {
             log(`Gradescope Sync: Failed to update grades for course ${cId}: ${e}`);
+            // Check for specific schema error
+            if (e?.message?.includes('Unknown attribute')) {
+                 logs.push("CRITICAL ERROR: Missing 'gradedItems' in 'courses' collection. Please add this attribute in Appwrite Console.");
+                 // We don't throw here so we can finish other courses, but we should probably warn user
+            }
         }
     }
     
