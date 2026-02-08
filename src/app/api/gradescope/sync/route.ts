@@ -496,7 +496,8 @@ export async function POST(request: NextRequest) {
         //    - Must NOT be submitted/graded
         if (!existing) {
              // Check Date: Skip if due date is strictly before today (yesterday or older)
-             if (gsAssign.due_date < todayMidnight) {
+             const dueDate = new Date(gsAssign.deadline);
+             if (dueDate < todayMidnight) {
                  continue;
              }
              
@@ -513,22 +514,19 @@ export async function POST(request: NextRequest) {
 
         // Try to link to an internal course ID
         const internalCourseId = findInternalCourseId({
-            name: gsAssign.course_name,
-            shortName: gsAssign.course_name // Note: we only stored shortName || name in course_name
-            // Improvement: we should have stored both individually in allGsAssignments
-            // But for now, let's just pass what we have.
-            // Actually, wait, let's fix the allGsAssignments push to include shortName separately
+            name: gsAssign.courseName,
+            shortName: gsAssign.courseShortName
         }, internalCourses);
 
         // Map GS data to our schema
         const docData = {
             title: gsAssign.title,
-            deadline: gsAssign.due_date.toISOString(), 
+            deadline: gsAssign.deadline, 
             gradescopeId: gsId,
-            gradescopeCourseId: gsAssign.course_id,
-            gradescopeCourseName: gsAssign.course_name,
+            gradescopeCourseId: gsAssign.courseId,
+            gradescopeCourseName: gsAssign.courseName,
             courseId: existing ? existing.courseId : internalCourseId, // Use found ID or keep existing
-            // pointsPossible: gsAssign.points_possible, // Not easily available in student table view
+            // pointsPossible: gsAssign.total, // We have total now
             status: gsAssign.isSubmitted ? 'completed' : 'not_started' // Basic mapping
         };
 
