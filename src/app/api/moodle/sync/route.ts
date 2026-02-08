@@ -294,6 +294,14 @@ export async function POST(request: NextRequest) {
                          continue;
                      }
 
+                     if (isCategoryTotal || isCourseTotal) {
+                         // Skip category totals and course totals.
+                         // Category totals cause double counting (e.g. "Group Discussion total" 300/100).
+                         // Course totals (e.g. 10/100) are treated as assignments and tank the grade because the app calculates its own total.
+                         log(`Moodle Sync: Skipping total item: ${item.itemname || 'Course Total'} (type=${item.itemtype})`);
+                         continue;
+                     }
+
                      // Fix for Moodle 4.x weirdness: sometimes grademax is undefined in the JSON if not set, or 0.
                      // But we have a raw score! 
                      // Also, gradeformatted is "100.00" but grademax is undefined.
@@ -309,8 +317,14 @@ export async function POST(request: NextRequest) {
                          // Or just default to 100.
                          else maxScore = 100;
                      }
+                     
+                     // Validate grade existence
+                     // We trust graderaw if it exists. gradeformatted is secondary.
+                     // Sometimes gradeformatted is '-' for 0 or hidden, but if graderaw is present, we take it.
+                     const hasRawGrade = item.graderaw !== null && item.graderaw !== undefined;
+                     const isNotPlaceholder = item.gradeformatted !== '-';
 
-                     if (item.gradeformatted && item.gradeformatted !== '-' && item.graderaw !== null) {
+                     if (hasRawGrade && isNotPlaceholder) {
                          // Parse grade.
                          const rawScore = parseFloat(item.graderaw);
                          if (!isNaN(rawScore)) {
@@ -324,7 +338,12 @@ export async function POST(request: NextRequest) {
                                  total: maxScore
                              }, categoryHint);
                              gradesUpdatedCount++;
+                         } else {
+                            log(`Moodle Sync: Failed to parse raw score for ${item.itemname} (raw=${item.graderaw})`);
                          }
+                     } else if ((item.itemname || '').toLowerCase().includes('technial')) { 
+                         // Debug logging specifically for the missing item if it fails the check
+                         log(`Moodle Sync: [DEBUG FAIL] Skipping "Technial" item. hasRaw=${hasRawGrade}, fmt=${item.gradeformatted}, raw=${item.graderaw}`);
                      }
                  }
              } else {
