@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
                      let score: number | null = null;
                      let total: number | null = null;
 
-                     cells.each((_: unknown, cell: unknown) => {
+                     cells.each((_: number, cell: any) => {
                          const cellText = $c(cell).text().trim();
                          const scoreMatch = cellText.match(/([\d\.]+)\s*\/\s*([\d\.]+)/);
                          if (scoreMatch) {
