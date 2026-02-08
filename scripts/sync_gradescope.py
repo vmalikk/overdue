@@ -753,6 +753,11 @@ class GradescopeSyncer:
                             # Create conflict for manual resolution
                             self.create_conflict(user.id, similar_assignment, gs_assignment)
                         else:
+                            # Skip task creation if assignment is in the past (completed/old)
+                            # But we still processed the grade above!
+                            if gs_assignment.deadline.timestamp() < datetime.now().timestamp():
+                                continue
+
                             # Create new assignment
                             # Inject internal_course_id into creation logic. 
                             # But create_assignment method doesn't take it currently.

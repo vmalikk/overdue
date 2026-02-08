@@ -97,12 +97,8 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
   const assignmentsData = [];
 
   // 2. Get Assignments
-  const now = Math.floor(Date.now() / 1000);
-  const cutoff = now - (14 * 24 * 60 * 60);
-
-  // We can fetch multiple courses at once or one by one.
-  // 'mod_assign_get_assignments' accepts 'courseids' array.
-
+  // No cutoff date for fetching, we want all grades even if old
+  
   // Moodle API params for list
   const assignParams = new URLSearchParams({
     wstoken: token,
@@ -131,9 +127,6 @@ async function fetchMoodleAssignments(url: string, token: string, userid: number
       const courseId = c.id;
 
       for (const a of c.assignments) {
-          // Filter old
-          if (a.duedate < cutoff) continue;
-
           // Check submission status
           let isSubmitted = false;
           let gradeInfo = null;
@@ -277,9 +270,12 @@ export async function GET(req: NextRequest) {
                     }
 
                     if (!existing) {
+                        // Skip creation if it's an old assignment (before today)
+                        // BUT if we just updated the grade above, the user has the data in the gradebook.
+                        // We avoid cluttering the task list with past due assignments.
                         if (mAssign.dueDate < todaySeconds) continue;
 
-                        // Skip if already submitted
+                        // Skip if already submitted (and completed)
                         if (mAssign.isSubmitted) continue;
 
                         await databases.createDocument(
