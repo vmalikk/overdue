@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
                      
                      // If found score, queue update
                      if (score !== null) {
-                         const internalCourseId = findInternalCourseId(course, internalCourses.documents);
+                         const internalCourseId = findInternalCourseId(course, internalCourses);
                          if (internalCourseId) {
                              log(`Found Grade: ${cleanTitle} = ${score}/${total} for course ${course.shortName} -> ${internalCourseId}`);
                              gradeUpdates.push({
