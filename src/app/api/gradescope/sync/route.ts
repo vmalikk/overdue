@@ -402,6 +402,7 @@ export async function POST(request: NextRequest) {
     
     log(`Gradescope Sync: Processing grade updates for ${Object.keys(updatesByCourse).length} courses`);
 
+    let gradesUpdatedCount = 0;
     for (const [cId, updates] of Object.entries(updatesByCourse)) {
         try {
             // Find in already-fetched internal courses
@@ -454,6 +455,7 @@ export async function POST(request: NextRequest) {
                     gradedItems: JSON.stringify(gradedItems)
                 });
                 log(`Gradescope Sync: Updated grades for course ${cId}`);
+                gradesUpdatedCount++;
             }
         } catch (e) {
             log(`Gradescope Sync: Failed to update grades for course ${cId}: ${e}`);
@@ -602,6 +604,8 @@ export async function POST(request: NextRequest) {
         count: allGsAssignments.length,
         created: createdCount,
         updated: updatedCount,
+        gradesUpdatedCount: gradesUpdatedCount,
+        message: `Synced assignments: ${createdCount} new, ${updatedCount} updated. Grades updated for ${gradesUpdatedCount} courses.`,
         debug: logs
     });
 
