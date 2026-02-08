@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -41,6 +41,14 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
             setEditedWeights([])
         }
     }, [course])
+
+    // Reset view state when modal is closed
+    useEffect(() => {
+        if (!isOpen) {
+            setActiveCategory(null)
+            setIsAddingGrade(false)
+        }
+    }, [isOpen])
 
     if (!course) return null
 
