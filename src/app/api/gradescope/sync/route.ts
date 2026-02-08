@@ -268,7 +268,6 @@ export async function POST(request: NextRequest) {
                      // Helper to find the name from the first few columns
                      let title = "";
                      let assignmentId = 'manual-' + i;
-                     let nameCellIndex = 0;
 
                      // Strategy: The name is usually in the first column (index 0)
                      const potentialNameCell = $c(cells[0]);
@@ -280,18 +279,51 @@ export async function POST(request: NextRequest) {
                         if (linkHref) assignmentId = linkHref.split('/').pop() || assignmentId;
                      } else {
                         // Fallback: Check if 2nd column has an anchor if the 1st was empty or weird
-                        // But usually it's the 1st.
                         title = potentialNameCell.text().trim();
                      }
 
+                     const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+                     // Identify Due Date column
+                     // Based on logs: 
+                     // 4 'td' columns found previously -> Last column (index 3) was proper ISO date.
+                     // With 'th' added, we expect 5 columns. Last column (index 4) should be Due Date.
+                     // We look for the last column that parses as a valid date.
+                     
+                     let status = '';
+                     let dueDateStr = '';
+                     
+                     // Attempt to grab status from column 1 or 2
+                     if (cells.length >= 2) {
+                        // If cell 0 is Name, cell 1 is often Score or Status
+                        status = $c(cells[1]).text().trim();
+                     }
+
+                     const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+                     let status = '';
+                     let dueDateStr = '';
+                     
+                     // Attempt to grab status from column 1 or 2
+                     if (cells.length >= 2) {
+                        status = $c(cells[1]).text().trim();
+                     }
+
+                     // Look for date in the last columns
+                     for (let j = cells.length - 1; j >= 1; j--) {
+                         const txt = $c(cells[j]).text().trim();
+                         if (txt.match(/^\d{4}-\d{2}-\d{2}/)) {
+                             dueDateStr = txt;
+                             break;
+                         }
+                     }
+                     
+                     // Grade Parsing
                      let score: number | null = null;
                      let total: number | null = null;
 
-                     // Attempt to find score (e.g., "5.0 / 10.0")
-                     // iterate through all cells to find a score pattern
                      cells.each((_: unknown, cell: unknown) => {
                          const cellText = $c(cell).text().trim();
-                         // Regex for "X / Y" or "X.X / Y.Y"
                          const scoreMatch = cellText.match(/([\d\.]+)\s*\/\s*([\d\.]+)/);
                          if (scoreMatch) {
                              score = parseFloat(scoreMatch[1]);
@@ -299,9 +331,8 @@ export async function POST(request: NextRequest) {
                          }
                      });
                      
-                     // If found score, update course stats
+                     // If found score, queue update
                      if (score !== null) {
-                         // Find internal course for this GS course
                          const internalCourseId = findInternalCourseId(course, internalCourses.documents);
                          if (internalCourseId) {
                              log(`Found Grade: ${cleanTitle} = ${score}/${total} for course ${course.shortName} -> ${internalCourseId}`);
@@ -314,7 +345,17 @@ export async function POST(request: NextRequest) {
                          }
                      }
 
-                     if (cleanTitle && dueDate) {
+                     log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}" (Cols: ${cells.length})`);
+
+                     // Determine if submitted/graded for status mapping
+                     const isSubmittedOrGraded = 
+                        status.toLowerCase().includes('submitted') || 
+                        status.toLowerCase().includes('graded') ||
+                        /\d+\.?\d*\s*\/\s*\d+\.?\d*/.test(status);
+
+                     const dueDate = parseGradescopeDate(dueDateStr);
+                     
+                     if (dueDate) {
                          allGsAssignments.push({
                              id: assignmentId,
                              title: cleanTitle,
@@ -323,74 +364,8 @@ export async function POST(request: NextRequest) {
                              courseShortName: course.shortName,
                              deadline: dueDate.toISOString(),
                              status: status,
-                             score, // Pass score
-                             total // Pass total
-                         });
-                    }
-                 });
-            } else {
-                log(`Gradescope Sync: No assignment table found for ${course.shortName}`);
-            }
-        } else {
-             log(`Gradescope Sync: Failed to fetch course page ${course.id}: ${courseRes.status}`);
-        }
-    }
-
-    // Process all captured grade updates
-    log(`Processing ${gradeUpdates.length} grade updates...`);
-    for (const update of gradeUpdates) {
-        await updateCourseGrades(
-            databases, 
-            DATABASE_ID, 
-            COURSES_COLLECTION, 
-            update.courseId, 
-            update.title, 
-            { score: update.score, total: update.total }
-        );
-    }
-
-                     // Look for date in the last columns
-                     // We iterate backwards to find a valid ISO-like string or date
-                     for (let j = cells.length - 1; j >= 1; j--) {
-                         const txt = $c(cells[j]).text().trim();
-                         // Check if it looks like the ISO format date we saw: "2026-02-01 23:59:00 -0500"
-                         if (txt.match(/^\d{4}-\d{2}-\d{2}/)) {
-                             dueDateStr = txt;
-                             break;
-                         }
-                     }
-                     
-                     // If no ISO date found, try the text column (usually displayed "Oct 25...")
-                     // This is risky, but fallback.
-                     if (!dueDateStr && cells.length >= 3) {
-                         // Usually column before the hidden ones
-                         // if 5 cols: 0=Name, 1=Score, 2=TextDate, 3=Hidden, 4=Hidden
-                         // Try cells[2]?
-                     }
-
-                     log(`Gradescope Sync: Found assignment "${cleanTitle}" - Due: "${dueDateStr}" (Cols: ${cells.length})`);
-
-                     // Determine if submitted/graded for status mapping
-                     // Checks for "Submitted" text or "Score / Max" pattern (e.g. "10.0 / 10.0")
-                     const isSubmittedOrGraded = 
-                        status.toLowerCase().includes('submitted') || 
-                        status.toLowerCase().includes('graded') ||
-                        /\d+\.?\d*\s*\/\s*\d+\.?\d*/.test(status);
-
-                     // We do NOT filter here anymore so we can update existing assignments
-                     // Filtering happens during the sync phase
-
-                     const dueDate = parseGradescopeDate(dueDateStr);
-                     
-                     // Only add if we have a due date, usually
-                     if (dueDate) {
-                         allGsAssignments.push({
-                             id: assignmentId,
-                             title: cleanTitle,
-                             course_id: course.id,
-                             course_name: course.shortName || course.name,
-                             due_date: dueDate,
-                             status: status,
+                             score,
+                             total,
                              isSubmitted: isSubmittedOrGraded
                          });
                      } else {
