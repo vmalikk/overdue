@@ -330,6 +330,9 @@ export async function POST(request: NextRequest) {
 
                      cells.each((_: number, cell: any) => {
                          const cellText = $c(cell).text().trim();
+                         // Log cell text if it looks numerical
+                         // if (/\d/.test(cellText)) log(`Cell check: ${cellText}`);
+
                          const scoreMatch = cellText.match(/([\d\.]+)\s*\/\s*([\d\.]+)/);
                          if (scoreMatch) {
                              score = parseFloat(scoreMatch[1]);
@@ -348,6 +351,9 @@ export async function POST(request: NextRequest) {
                                  score,
                                  total
                              });
+                         } else {
+                             // Log strictly
+                             log(`[UNMATCHED] Found Grade: ${cleanTitle} (${score}/${total}) but could not match course "${course.shortName}" or "${course.name}" to any internal course.`);
                          }
                      }
 
@@ -403,6 +409,8 @@ export async function POST(request: NextRequest) {
     log(`Gradescope Sync: Processing grade updates for ${Object.keys(updatesByCourse).length} courses`);
 
     let gradesUpdatedCount = 0;
+    const missingCourses: string[] = [];
+
     for (const [cId, updates] of Object.entries(updatesByCourse)) {
         try {
             // Find in already-fetched internal courses
@@ -410,13 +418,27 @@ export async function POST(request: NextRequest) {
             
             // Fallback fetch if somehow missing (safety)
             if (!currentDef) {
-                 currentDef = await databases.getDocument(DATABASE_ID, COURSES_COLLECTION, cId);
+                 try {
+                    currentDef = await databases.getDocument(DATABASE_ID, COURSES_COLLECTION, cId);
+                 } catch (e) {
+                    log(`Could not find internal course ${cId}`);
+                    continue;
+                 }
             }
+            
+            if (!currentDef) continue;
 
             let gradedItems = currentDef.gradedItems ? JSON.parse(currentDef.gradedItems) : [];
             if (!Array.isArray(gradedItems)) gradedItems = [];
             
             let gradeWeights = currentDef.gradeWeights ? JSON.parse(currentDef.gradeWeights) : [];
+            
+            // If no weights, create a default "Gradescope Import" category so user can see it
+            if (!gradeWeights || gradeWeights.length === 0) {
+                 gradeWeights = [{ category: "Imported", weight: 0 }];
+                 // We don't save weights back necessarily, but we use it for categorizing below
+                 // Actually, if we use "Imported", the frontend will show it if we add it to the item
+            }
 
             let changed = false;
             
@@ -424,21 +446,23 @@ export async function POST(request: NextRequest) {
                 const title = up.title;
                 const existingIndex = gradedItems.findIndex((i: any) => i.name === title);
                 
+                // Determine category
+                let category = "Imported"; 
+                if (gradeWeights && gradeWeights.length > 0) {
+                    const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
+                    if (match) category = match.category;
+                    else category = gradeWeights[0].category;
+                }
+
                 if (existingIndex >= 0) {
                     if (gradedItems[existingIndex].score !== up.score || gradedItems[existingIndex].total !== up.total) {
                         gradedItems[existingIndex].score = up.score;
                         gradedItems[existingIndex].total = up.total;
+                        // gradedItems[existingIndex].category = category; // Update category too? Maybe not, user might have moved it.
                         changed = true;
                     }
                 } else {
                      // New Item
-                     let category = "Assignments"; 
-                     if (gradeWeights && gradeWeights.length > 0) {
-                        const match = gradeWeights.find((gw: any) => title.toLowerCase().includes(gw.category.toLowerCase()));
-                        if (match) category = match.category;
-                        else category = gradeWeights[0].category;
-                     }
-                     
                      gradedItems.push({
                         id: Math.random().toString(36).substring(2, 9),
                         category: category,
@@ -454,13 +478,23 @@ export async function POST(request: NextRequest) {
                 await databases.updateDocument(DATABASE_ID, COURSES_COLLECTION, cId, {
                     gradedItems: JSON.stringify(gradedItems)
                 });
-                log(`Gradescope Sync: Updated grades for course ${cId}`);
+                log(`Gradescope Sync: Updated grades for course ${currentDef.code}`);
                 gradesUpdatedCount++;
             }
         } catch (e) {
             log(`Gradescope Sync: Failed to update grades for course ${cId}: ${e}`);
         }
     }
+    
+    // Check for unmatched courses for user info
+    // gradeUpdates has courseId. If courseId is empty string, it was unmatched.
+    // Wait, gradeUpdates only has items IF internalCourseId was found.
+    // I added logging for "NO MATCHING COURSE" in previous step.
+    
+    const unmatchedCount = gradeUpdates.filter(u => !u.courseId).length; // Wait, I only push if courseId exists previously.
+    // I need to change that logic if I want to report it.
+    
+
 
     // 3. Sync with Appwrite
     // (Client and Internal Courses initialized at start)
