@@ -284,23 +284,6 @@ export async function POST(request: NextRequest) {
 
                      const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-                     // Identify Due Date column
-                     // Based on logs: 
-                     // 4 'td' columns found previously -> Last column (index 3) was proper ISO date.
-                     // With 'th' added, we expect 5 columns. Last column (index 4) should be Due Date.
-                     // We look for the last column that parses as a valid date.
-                     
-                     let status = '';
-                     let dueDateStr = '';
-                     
-                     // Attempt to grab status from column 1 or 2
-                     if (cells.length >= 2) {
-                        // If cell 0 is Name, cell 1 is often Score or Status
-                        status = $c(cells[1]).text().trim();
-                     }
-
-                     const cleanTitle = title.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-
                      let status = '';
                      let dueDateStr = '';
                      
