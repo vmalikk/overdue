@@ -52,13 +52,18 @@ export function MoodleSyncSection() {
 
       const data = await response.json()
 
+      if (data.debug) {
+        console.log('Moodle Sync Logs:', data.debug)
+      }
+
       if (data.success) {
-        setLastSync(new Date())
         showToast(`Synced assignments: ${data.created} new, ${data.updated} updated`, 'success')
+        setLastSync(new Date())
       } else {
         showToast(data.error || 'Failed to sync with Moodle', 'error')
       }
     } catch (err) {
+      console.error('Moodle Sync Error:', err)
       showToast('An error occurred while syncing', 'error')
     } finally {
       setIsSyncing(false)

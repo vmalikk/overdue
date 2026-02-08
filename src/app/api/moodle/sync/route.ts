@@ -85,6 +85,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Moodle not connected' }, { status: 400 })
     }
 
+    const logs: string[] = [];
+    const log = (msg: string) => {
+        console.log(msg);
+        logs.push(msg);
+    };
+
     let moodleData;
     try {
         const decrypted = decryptData(user.prefs.moodleSessionData)
@@ -116,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Fetch Courses
     // core_enrol_get_users_courses
-    console.log(`Moodle Sync: Fetching courses for user ${userid}...`)
+    log(`Moodle Sync: Fetching courses for user ${userid}...`)
     const coursesData = await moodleCall('core_enrol_get_users_courses', { userid })
     
     if (coursesData.exception) {
@@ -124,12 +130,12 @@ export async function POST(request: NextRequest) {
     }
 
     const courses = coursesData as any[]; // Array of courses
-    console.log(`Moodle Sync: Found ${courses.length} courses`)
+    log(`Moodle Sync: Found ${courses.length} courses`)
 
     // 2. Fetch Grades (NEW: Before Assignments)
     // gradereport_user_get_grade_items
     try {
-        console.log(`Moodle Sync: Fetching grades...`)
+        log(`Moodle Sync: Fetching grades...`)
         // Try getting grades for all courses. Some Moodle configs require courseid per call.
         // Let's iterate courses and fetch grades for linked courses
         for (const course of courses) {
@@ -171,17 +177,24 @@ export async function POST(request: NextRequest) {
              const mCodeClean = normalize(course.shortname);
              const mNameClean = normalize(course.fullname);
              let internalCourseId = '';
+             let matchedInternalCode = '';
 
              for (const internal of internalCourses) {
                 const iCode = normalize(internal.code);
                 const iName = normalize(internal.name);
                 if (mCodeClean.includes(iCode) || iCode.includes(mCodeClean) || mNameClean === iName) {
                     internalCourseId = internal.$id;
+                    matchedInternalCode = internal.code;
                     break;
                 }
              }
 
-             if (!internalCourseId) continue; // Skip unlinked courses
+             if (!internalCourseId) {
+                  log(`Moodle Sync: [SKIP] Course "${course.shortname}" not found in Overdue.`);
+                  continue; 
+             }
+             
+             log(`Moodle Sync: Inspecting grades for ${course.shortname} (Linked to ${matchedInternalCode})...`);
 
              const gradeData = await moodleCall('gradereport_user_get_grade_items', { 
                  courseid: course.id,
@@ -190,6 +203,8 @@ export async function POST(request: NextRequest) {
              
              if (gradeData.usergrades && gradeData.usergrades[0]) {
                  const gradeItems = gradeData.usergrades[0].gradeitems;
+                 log(`Moodle Sync: Found ${gradeItems.length} grade items for ${course.shortname}`);
+                 
                  for (const item of gradeItems) {
                      // Filter out category totals or course totals if desired, or keep them.
                      // Usually itemType='mod' is an assignment/quiz.
@@ -198,6 +213,11 @@ export async function POST(request: NextRequest) {
                      // We should accept almost anything with a valid raw grade.
                      // Let's broaden the filter to accept any item with a max grade > 0 and a valid raw score.
                      
+                     // Debug logging for specific investigation
+                     if ((item.itemname || '').toLowerCase().includes('forum') || (item.itemname || '').toLowerCase().includes('introduction')) {
+                         log(`[DEBUG ITEM] ${item.itemname}: type=${item.itemtype}, module=${item.itemmodule}, raw=${item.graderaw}, max=${item.grademax}, formatted=${item.gradeformatted}`);
+                     }
+
                      if (item.grademax > 0 && item.gradeformatted && item.gradeformatted !== '-' && item.graderaw !== null) {
                          // Parse grade. gradeformatted might be "85.00" or "-"
                          const rawScore = parseFloat(item.graderaw); // graderaw is numeric
@@ -205,7 +225,7 @@ export async function POST(request: NextRequest) {
                              const itemName = item.itemtype === 'course' ? 'Course Total' : item.itemname;
                              
                              // Debug log to see what we are catching
-                             console.log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${item.grademax})`);
+                             log(`Moodle Sync: Saving grade for ${itemName} (${rawScore}/${item.grademax})`);
 
                              await updateCourseGrades(databases, DATABASE_ID, COURSES_COLLECTION, internalCourseId, itemName, {
                                  score: rawScore,
@@ -216,11 +236,12 @@ export async function POST(request: NextRequest) {
                      }
                  }
              } else {
-                 console.log(`Moodle Sync: No user grades found for course ${course.shortname}`);
+                 log(`Moodle Sync: No user grades found for course ${course.shortname}`);
              }
         }
     } catch (e) {
         console.error("Moodle Grade Sync Failed", e);
+        log(`Moodle Grade Sync Failed: ${e}`);
     }
 
 
@@ -423,11 +444,14 @@ export async function POST(request: NextRequest) {
         }
     }
 
+    log(`Moodle Sync: Found ${allMoodleAssignments.length} total assignments`)
+
     return NextResponse.json({ 
         success: true, 
         created: createdCount, 
         updated: updatedCount, 
-        count: allMoodleAssignments.length 
+        count: allMoodleAssignments.length,
+        debug: logs 
     })
 
   } catch (error) {
