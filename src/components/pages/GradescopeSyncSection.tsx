@@ -62,13 +62,18 @@ export function GradescopeSyncSection() {
 
       const data = await response.json()
 
+      if (data.debug) {
+        console.log('Gradescope Sync Logs:', data.debug)
+      }
+
       if (data.success) {
-        showToast(`Synced assignments: ${data.created} new, ${data.updated} updated`, 'success')
+        showToast(data.message || `Synced assignments: ${data.created} new, ${data.updated} updated`, 'success')
         setLastSync(new Date())
       } else {
         showToast(data.error || 'Failed to sync with Gradescope', 'error')
       }
     } catch (err) {
+      console.error('Gradescope Sync Error:', err)
       showToast('An error occurred while syncing', 'error')
     } finally {
       setIsSyncing(false)
