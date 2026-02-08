@@ -262,7 +262,16 @@ export async function POST(request: NextRequest) {
     // Limit concurrency to avoid getting blocked
     // For now, sequential is safer
     for (const course of courses) {
-        log(`Gradescope Sync: Fetching course ${course.id} (${course.shortName})`);
+        // Optimization: Only fetch assignments if we have a matching course in our DB
+        // This prevents scraping old/archived courses that the user hasn't added to Overdue
+        const potentialMatchId = findInternalCourseId(course, internalCourses);
+        
+        if (!potentialMatchId) {
+            // log(`Gradescope Sync: Skipping ${course.shortName} (Not in Overdue)`);
+            continue;
+        }
+
+        log(`Gradescope Sync: Fetching course ${course.id} (${course.shortName}) -> Matched to ${potentialMatchId}`);
         const courseRes = await fetch(`${GRADESCOPE_BASE_URL}/courses/${course.id}`, { headers });
         
         if (courseRes.ok) {
