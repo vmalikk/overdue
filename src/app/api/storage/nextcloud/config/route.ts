@@ -16,11 +16,35 @@ export async function POST(request: NextRequest) {
     // Encrypt the app password
     const encryptedPassword = encryptToken(password)
 
+    // Test the connection and create /Overdue/ folder
+    const { createClient } = await import('webdav')
+    const cleanUrl = url.replace(/\/$/, '')
+    const webdavClient = createClient(
+      `${cleanUrl}/remote.php/dav/files/${username}`,
+      { username, password }
+    )
+
+    // Verify credentials work by listing root
+    try {
+      await webdavClient.getDirectoryContents('/')
+    } catch (e: any) {
+      return NextResponse.json({
+        error: 'Could not connect to Nextcloud. Check your URL, username, and app password.',
+      }, { status: 400 })
+    }
+
+    // Create /Overdue/ folder
+    try {
+      await webdavClient.createDirectory('/Overdue')
+    } catch {
+      // Folder may already exist — that's fine
+    }
+
     // Store in user preferences
     const { users } = createAdminClient()
     await users.updatePrefs(user.$id, {
       ...user.prefs,
-      nextcloudUrl: url.replace(/\/$/, ''), // strip trailing slash
+      nextcloudUrl: cleanUrl,
       nextcloudUsername: username,
       nextcloudPassword: encryptedPassword,
     })
