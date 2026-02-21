@@ -123,3 +123,6 @@ export function CalendarSidebar({
           <span className="text-sm text-text-secondary">Office Hours</span>
         </div>
       </div>
+    </div>
+  )
+}
