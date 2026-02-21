@@ -109,11 +109,17 @@ export async function updateAssignment(id: string, updates: Partial<Assignment>)
     updateData.completedAt = updates.completedAt instanceof Date ? updates.completedAt.toISOString() : updates.completedAt;
   }
 
+  // Serialize nextcloudFiles array to JSON string for Appwrite
+  if (updates.nextcloudFiles !== undefined) {
+    updateData.nextcloudFiles = JSON.stringify(updates.nextcloudFiles);
+  }
+
   // Remove fields that shouldn't be updated
   delete updateData.id;
   delete updateData.userId;
   delete updateData.createdAt;
   delete updateData.updatedAt;
+  delete updateData.solverStatus;
 
   const doc = await databases.updateDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, id, updateData);
   return mapDocumentToAssignment(doc);
@@ -247,7 +253,10 @@ function mapDocumentToAssignment(doc: any): Assignment {
     source: doc.source || 'manual',
     gradescopeId: doc.gradescopeId,
     gradescopeCourseId: doc.gradescopeCourseId,
-    gradescopeCourseName: doc.gradescopeCourseName
+    gradescopeCourseName: doc.gradescopeCourseName,
+    // Nextcloud / Solver fields
+    nextcloudFiles: doc.nextcloudFiles ? JSON.parse(doc.nextcloudFiles) : undefined,
+    solvedFilePath: doc.solvedFilePath || undefined,
   };
 }
 

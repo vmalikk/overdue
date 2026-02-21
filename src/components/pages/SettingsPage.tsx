@@ -566,8 +566,19 @@ export function SettingsPage() {
             </div>
 
             {/* Claude Session Key */}
+            {solver.claudeSessionKey ? (
+              <div className="p-4 bg-status-green/10 border border-status-green/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-status-green" />
+                  <span className="text-sm font-medium text-status-green">Claude Session Key Saved</span>
+                </div>
+                <p className="text-xs text-text-muted">Your session key is encrypted and stored on the server.</p>
+              </div>
+            ) : null}
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Claude Session Key</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                {solver.claudeSessionKey ? 'Update Claude Session Key' : 'Claude Session Key'}
+              </label>
               <div className="relative">
                 <input
                   type={sessionKeyVisible ? 'text' : 'password'}
