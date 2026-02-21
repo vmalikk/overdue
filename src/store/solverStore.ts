@@ -37,13 +37,14 @@ export const useSolverStore = create<SolverStore>()(
           const res = await fetch('/api/ai/solver-config', {
             headers: { Authorization: `Bearer ${jwt}` },
           })
+          if (!res.ok) return // Don't overwrite local state on failure
           const data = await res.json()
           set({
             isEnabled: !!data.solverEnabled,
             claudeSessionKey: data.hasClaudeSession ? '••••••••' : '',
           })
         } catch {
-          // Ignore
+          // Keep existing local state on error
         }
       },
 
@@ -166,6 +167,7 @@ export const useSolverStore = create<SolverStore>()(
       name: 'solver-storage',
       partialize: (state) => ({
         isEnabled: state.isEnabled,
+        claudeSessionKey: state.claudeSessionKey,
         jobs: state.jobs,
       }),
     }
