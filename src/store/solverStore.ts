@@ -34,7 +34,7 @@ export const useSolverStore = create<SolverStore>()(
       checkStatus: async () => {
         try {
           const { jwt } = await account.createJWT()
-          const res = await fetch('/api/ai/config', {
+          const res = await fetch('/api/ai/solver-config', {
             headers: { Authorization: `Bearer ${jwt}` },
           })
           const data = await res.json()
