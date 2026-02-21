@@ -30,14 +30,19 @@ export function AssignmentDetailModal({
 }: AssignmentDetailModalProps) {
   const { getCourseById } = useCourseStore()
   const { openEditModal } = useUIStore()
-  const { updateAssignment } = useAssignmentStore()
+  const { updateAssignment, assignments } = useAssignmentStore()
   const nextcloud = useNextcloudStore()
   const solver = useSolverStore()
   const [fileUrl, setFileUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
 
-  const solveJob = assignment ? solver.jobs[assignment.id] : undefined
+  // Use live data from the store so uploads reflect immediately
+  const liveAssignment = assignment
+    ? assignments.find(a => a.id === assignment.id) || assignment
+    : null
+
+  const solveJob = liveAssignment ? solver.jobs[liveAssignment.id] : undefined
 
   const handleEdit = () => {
     if (onEdit) {
@@ -73,9 +78,9 @@ export function AssignmentDetailModal({
     }
   }, [assignment, isOpen])
 
-  if (!assignment) return null
+  if (!liveAssignment) return null
 
-  const course = getCourseById(assignment.courseId)
+  const course = getCourseById(liveAssignment.courseId)
 
   const categoryIcons: Record<string, string> = {
     'exam': '📝',
@@ -93,7 +98,7 @@ export function AssignmentDetailModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={assignment.title}
+      title={liveAssignment.title}
       size="lg"
     >
       <div className="space-y-6">
@@ -102,7 +107,7 @@ export function AssignmentDetailModal({
           <div className="flex justify-between items-start">
             {course && <CourseBadge course={course} />}
             <span className="px-2 py-1 bg-secondary text-text-primary text-xs rounded font-medium">
-              {categoryIcons[assignment.category] || '📄'} {assignment.category}
+              {categoryIcons[liveAssignment.category] || '📄'} {liveAssignment.category}
             </span>
           </div>
         </div>
@@ -112,36 +117,36 @@ export function AssignmentDetailModal({
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Status</h3>
-              <p className="text-text-primary capitalize">{assignment.status.replace('_', ' ')}</p>
+              <p className="text-text-primary capitalize">{liveAssignment.status.replace('_', ' ')}</p>
             </div>
 
             <div>
               <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Due Date</h3>
               <p className="text-text-primary">
-                {format(new Date(assignment.deadline), 'EEEE, MMMM d, yyyy')}
+                {format(new Date(liveAssignment.deadline), 'EEEE, MMMM d, yyyy')}
                 <span className="text-text-muted ml-2">
-                  at {format(new Date(assignment.deadline), 'h:mm a')}
+                  at {format(new Date(liveAssignment.deadline), 'h:mm a')}
                 </span>
               </p>
             </div>
 
-            {assignment.source === 'gradescope' && (
+            {liveAssignment.source === 'gradescope' && (
               <div>
                 <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Source</h3>
                 <p className="text-text-primary flex items-center gap-2">
                   <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">Gradescope</span>
-                  {assignment.gradescopeCourseName}
+                  {liveAssignment.gradescopeCourseName}
                 </p>
               </div>
             )}
           </div>
 
           <div className="space-y-4">
-            {assignment.notes && (
+            {liveAssignment.notes && (
               <div>
                 <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-1">Notes</h3>
                 <div className="bg-secondary p-3 rounded-md text-sm text-text-primary whitespace-pre-wrap">
-                  {assignment.notes}
+                  {liveAssignment.notes}
                 </div>
               </div>
             )}
@@ -151,15 +156,15 @@ export function AssignmentDetailModal({
         {/* AI Study Tips */}
         <div className="border-t border-border pt-4 mt-2">
           <StudyTips
-            assignmentId={assignment.id}
-            title={assignment.title}
+            assignmentId={liveAssignment.id}
+            title={liveAssignment.title}
             courseCode={course?.code}
-            deadline={new Date(assignment.deadline)}
+            deadline={new Date(liveAssignment.deadline)}
           />
         </div>
 
         {/* Attachments Section */}
-        {assignment.attachmentFileId && (
+        {liveAssignment.attachmentFileId && (
           <div className="border-t border-border pt-4 mt-2">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,7 +181,7 @@ export function AssignmentDetailModal({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text-primary truncate">
-                  {assignment.attachmentFileName || 'Attached Document'}
+                  {liveAssignment.attachmentFileName || 'Attached Document'}
                 </p>
                 <p className="text-xs text-text-muted">
                   Document
@@ -211,9 +216,9 @@ export function AssignmentDetailModal({
             </h3>
 
             {/* Existing Nextcloud files */}
-            {assignment.nextcloudFiles && assignment.nextcloudFiles.length > 0 && (
+            {liveAssignment.nextcloudFiles && liveAssignment.nextcloudFiles.length > 0 && (
               <div className="space-y-2 mb-3">
-                {assignment.nextcloudFiles.map((file, idx) => (
+                {liveAssignment.nextcloudFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center p-3 bg-secondary rounded-lg border border-border group hover:border-primary/50 transition-colors">
                     <div className="p-2 bg-background rounded-md mr-3 text-text-muted">
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -260,8 +265,8 @@ export function AssignmentDetailModal({
                 try {
                   const result = await nextcloud.uploadFile(file, course.name || course.code)
                   if (result) {
-                    const existing = assignment.nextcloudFiles || []
-                    await updateAssignment(assignment.id, {
+                    const existing = liveAssignment.nextcloudFiles || []
+                    await updateAssignment(liveAssignment.id, {
                       nextcloudFiles: [...existing, result],
                     })
                   }
@@ -280,7 +285,7 @@ export function AssignmentDetailModal({
             </Button>
 
             {/* Solve with Claude button */}
-            {solver.isEnabled && assignment.nextcloudFiles?.some(f => f.name.toLowerCase().endsWith('.pdf')) && (
+            {solver.isEnabled && liveAssignment.nextcloudFiles?.some(f => f.name.toLowerCase().endsWith('.pdf')) && (
               <div className="mt-3">
                 {solveJob?.status === 'running' ? (
                   <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
@@ -305,7 +310,7 @@ export function AssignmentDetailModal({
                   <div className="p-3 bg-status-red/10 border border-status-red/30 rounded-lg">
                     <p className="text-sm text-status-red">Failed: {solveJob.error}</p>
                     <button
-                      onClick={() => solver.clearJob(assignment.id)}
+                      onClick={() => solver.clearJob(liveAssignment.id)}
                       className="text-xs text-text-muted hover:text-text-primary mt-1"
                     >
                       Dismiss
@@ -315,9 +320,9 @@ export function AssignmentDetailModal({
                   <Button
                     variant="primary"
                     onClick={() => {
-                      const pdfFile = assignment.nextcloudFiles?.find(f => f.name.toLowerCase().endsWith('.pdf'))
+                      const pdfFile = liveAssignment.nextcloudFiles?.find(f => f.name.toLowerCase().endsWith('.pdf'))
                       if (pdfFile) {
-                        solver.solveAssignment(assignment.id, pdfFile.path, assignment.title)
+                        solver.solveAssignment(liveAssignment.id, pdfFile.path, liveAssignment.title)
                       }
                     }}
                   >
@@ -328,7 +333,7 @@ export function AssignmentDetailModal({
             )}
 
             {/* Solution file if it exists */}
-            {assignment.solvedFilePath && (
+            {liveAssignment.solvedFilePath && (
               <div className="mt-3 flex items-center p-3 bg-status-green/10 border border-status-green/30 rounded-lg">
                 <div className="p-2 bg-background rounded-md mr-3 text-status-green">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -337,10 +342,10 @@ export function AssignmentDetailModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-text-primary">Solution (LaTeX)</p>
-                  <p className="text-xs text-text-muted truncate">{assignment.solvedFilePath}</p>
+                  <p className="text-xs text-text-muted truncate">{liveAssignment.solvedFilePath}</p>
                 </div>
                 <a
-                  href={nextcloud.downloadFileUrl(assignment.solvedFilePath)}
+                  href={nextcloud.downloadFileUrl(liveAssignment.solvedFilePath)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3 py-1.5 text-xs font-medium bg-status-green text-white rounded-md hover:opacity-90 transition-colors"
