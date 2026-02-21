@@ -16,10 +16,12 @@ export function calculateCompletionRate(assignments: Assignment[]): CompletionMe
   const total = validAssignments.length
   const completed = validAssignments.filter(a => a.status === AssignmentStatus.COMPLETED).length
 
-  // All completed assignments count as on-time
-  // (marking complete after the deadline doesn't mean it was turned in late)
+  // Completed assignments always count as on-time
   const onTime = completed
-  const late = 0
+  // Late = past deadline and NOT completed (still overdue)
+  const late = validAssignments.filter(a =>
+    a.status !== AssignmentStatus.COMPLETED && new Date(a.deadline) < new Date()
+  ).length
 
   return {
     total,
