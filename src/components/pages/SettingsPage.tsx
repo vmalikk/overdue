@@ -169,7 +169,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 w-full">
+    <div className="max-w-[90rem] mx-auto space-y-6 w-full">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Settings</h2>

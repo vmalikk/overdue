@@ -306,13 +306,19 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                                                                     <span className="truncate">{item.name}</span>
                                                                 </button>
                                                             ) : (
-                                                                <div className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary">
+                                                                <a
+                                                                    href={`${nextcloud.url}/apps/files/?dir=${encodeURIComponent(item.path.substring(0, item.path.lastIndexOf('/')))}&scrollto=${encodeURIComponent(item.name)}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-background hover:text-accent transition-colors cursor-pointer"
+                                                                >
                                                                     <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                                                                     <span className="truncate flex-1">{item.name}</span>
                                                                     {item.size != null && (
                                                                         <span className="text-xs text-text-muted shrink-0">{formatFileSize(item.size)}</span>
                                                                     )}
-                                                                </div>
+                                                                    <svg className="w-3.5 h-3.5 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                                </a>
                                                             )}
                                                         </li>
                                                     ))}
