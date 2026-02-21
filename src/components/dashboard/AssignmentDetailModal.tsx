@@ -8,7 +8,7 @@ import { useCourseStore } from '@/store/courseStore'
 import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useNextcloudStore } from '@/store/nextcloudStore'
-import { useSolverStore } from '@/store/solverStore'
+import { useSolverStore, getStatusLabel } from '@/store/solverStore'
 import { CourseBadge } from '@/components/courses/CourseBadge'
 import { getFileDownloadUrl } from '@/lib/appwrite/storage'
 
@@ -218,15 +218,34 @@ export function AssignmentDetailModal({
             {/* Existing Nextcloud files */}
             {liveAssignment.nextcloudFiles && liveAssignment.nextcloudFiles.length > 0 && (
               <div className="space-y-2 mb-3">
-                {liveAssignment.nextcloudFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center p-3 bg-secondary rounded-lg border border-border group hover:border-primary/50 transition-colors">
-                    <div className="p-2 bg-background rounded-md mr-3 text-text-muted">
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                {liveAssignment.nextcloudFiles.map((file, idx) => {
+                  const isSolution = file.name.startsWith('solution.') || file.path.includes('Solutions/')
+                  return (
+                  <div key={idx} className={`flex items-center p-3 rounded-lg border group transition-colors ${
+                    isSolution
+                      ? 'bg-status-green/5 border-status-green/30 hover:border-status-green/50'
+                      : 'bg-secondary border-border hover:border-primary/50'
+                  }`}>
+                    <div className={`p-2 rounded-md mr-3 ${isSolution ? 'bg-status-green/10 text-status-green' : 'bg-background text-text-muted'}`}>
+                      {isSolution ? (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
+                        {isSolution && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-status-green/20 text-status-green rounded uppercase tracking-wider">
+                            Solution
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-text-muted truncate">{file.path}</p>
                     </div>
                     <div className="ml-4 flex gap-2">
@@ -249,7 +268,8 @@ export function AssignmentDetailModal({
                       </button>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -287,33 +307,58 @@ export function AssignmentDetailModal({
             {/* Solve with Claude button */}
             {solver.isEnabled && liveAssignment.nextcloudFiles?.some(f => f.name.toLowerCase().endsWith('.pdf')) && (
               <div className="mt-3">
-                {solveJob?.status === 'running' ? (
+                {solveJob && solveJob.status !== 'done' && solveJob.status !== 'error' ? (
                   <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                     <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-                    <span className="text-sm text-blue-400">Solving with Claude... This may take a few minutes.</span>
+                    <span className="text-sm text-blue-400">
+                      {solveJob.solverMessage || getStatusLabel(solveJob.status)}
+                    </span>
                   </div>
-                ) : solveJob?.status === 'completed' ? (
+                ) : solveJob?.status === 'done' ? (
                   <div className="p-3 bg-status-green/10 border border-status-green/30 rounded-lg">
                     <p className="text-sm text-status-green mb-2">Solution ready!</p>
-                    {solveJob.solutionPath && (
-                      <a
-                        href={nextcloud.downloadFileUrl(solveJob.solutionPath)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 text-xs font-medium bg-status-green text-white rounded-md hover:opacity-90 transition-colors"
-                      >
-                        Download .tex Solution
-                      </a>
+                    <div className="flex gap-2 flex-wrap">
+                      {solveJob.pdfPath && (
+                        <a
+                          href={nextcloud.downloadFileUrl(solveJob.pdfPath)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-xs font-medium bg-status-green text-white rounded-md hover:opacity-90 transition-colors"
+                        >
+                          Download PDF Solution
+                        </a>
+                      )}
+                      {solveJob.texPath && (
+                        <a
+                          href={nextcloud.downloadFileUrl(solveJob.texPath)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-xs font-medium bg-secondary text-text-primary rounded-md hover:opacity-90 transition-colors border border-border"
+                        >
+                          Download .tex Source
+                        </a>
+                      )}
+                    </div>
+                    {solveJob.preview && (
+                      <pre className="mt-2 text-xs text-text-muted bg-background p-2 rounded overflow-auto max-h-24">
+                        {solveJob.preview}
+                      </pre>
                     )}
+                    <button
+                      onClick={() => solver.clearJob(liveAssignment.id)}
+                      className="text-xs text-text-muted hover:text-text-primary mt-2"
+                    >
+                      Dismiss
+                    </button>
                   </div>
-                ) : solveJob?.status === 'failed' ? (
+                ) : solveJob?.status === 'error' ? (
                   <div className="p-3 bg-status-red/10 border border-status-red/30 rounded-lg">
                     <p className="text-sm text-status-red">Failed: {solveJob.error}</p>
                     <button
                       onClick={() => solver.clearJob(liveAssignment.id)}
                       className="text-xs text-text-muted hover:text-text-primary mt-1"
                     >
-                      Dismiss
+                      Dismiss & Retry
                     </button>
                   </div>
                 ) : (
@@ -332,26 +377,15 @@ export function AssignmentDetailModal({
               </div>
             )}
 
-            {/* Solution file if it exists */}
-            {liveAssignment.solvedFilePath && (
-              <div className="mt-3 flex items-center p-3 bg-status-green/10 border border-status-green/30 rounded-lg">
-                <div className="p-2 bg-background rounded-md mr-3 text-status-green">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {/* Solution file if it exists (persistent — shows even after job is dismissed) */}
+            {liveAssignment.solvedFilePath && !solveJob && (
+              <div className="mt-3 p-3 bg-status-green/10 border border-status-green/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-status-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
+                  <span className="text-sm font-medium text-status-green">Solved — solution files are in the file list above</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary">Solution (LaTeX)</p>
-                  <p className="text-xs text-text-muted truncate">{liveAssignment.solvedFilePath}</p>
-                </div>
-                <a
-                  href={nextcloud.downloadFileUrl(liveAssignment.solvedFilePath)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-xs font-medium bg-status-green text-white rounded-md hover:opacity-90 transition-colors"
-                >
-                  Download
-                </a>
               </div>
             )}
           </div>

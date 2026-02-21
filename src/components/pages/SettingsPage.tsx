@@ -13,7 +13,7 @@ import { GradescopeSyncSection } from './GradescopeSyncSection'
 import { MoodleSyncSection } from './MoodleSyncSection'
 
 export function SettingsPage() {
-  const { showToast, apiKey, setApiKey, snowEnabled, toggleSnow } = useUIStore()
+  const { showToast, apiKey, setApiKey, snowEnabled, toggleSnow, devUnlocked, setDevUnlocked } = useUIStore()
   const { deleteAllAssignments, assignments } = useAssignmentStore()
   const { deleteAllCourses, courses } = useCourseStore()
   const nextcloud = useNextcloudStore()
@@ -34,6 +34,38 @@ export function SettingsPage() {
   // Solver form state
   const [sessionKeyInput, setSessionKeyInput] = useState('')
   const [sessionKeyVisible, setSessionKeyVisible] = useState(false)
+
+  // Dev password gate for Nextcloud + Solver
+  const [devPasswordInput, setDevPasswordInput] = useState('')
+  const DEV_PASSWORD = 'HelloBye123'
+
+  const handleDevUnlock = async () => {
+    if (devPasswordInput === DEV_PASSWORD) {
+      setDevUnlocked(true)
+      setDevPasswordInput('')
+      // Persist to Appwrite user prefs so it syncs across devices
+      try {
+        const user = await account.get()
+        await account.updatePrefs({ ...user.prefs, devUnlocked: true })
+      } catch (e) {
+        console.error('Failed to save dev unlock to prefs:', e)
+      }
+      showToast('Developer features unlocked!', 'success')
+    } else {
+      showToast('Incorrect password', 'error')
+    }
+  }
+
+  const handleDevLock = async () => {
+    setDevUnlocked(false)
+    try {
+      const user = await account.get()
+      await account.updatePrefs({ ...user.prefs, devUnlocked: false })
+    } catch (e) {
+      console.error('Failed to save dev lock to prefs:', e)
+    }
+    showToast('Developer features locked', 'info')
+  }
 
   // Sync apiKey to input when it changes or when section changes
   useEffect(() => {
@@ -137,7 +169,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 w-full">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Settings</h2>
@@ -199,9 +231,10 @@ export function SettingsPage() {
           )}
         </button>
         <button
-          onClick={() => setActiveSection('nextcloud')}
-          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'nextcloud' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
-            }`}
+          onClick={() => setActiveSection(devUnlocked ? 'nextcloud' : 'general')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
+            !devUnlocked ? 'hidden' : activeSection === 'nextcloud' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+          }`}
         >
           Nextcloud
           {activeSection === 'nextcloud' && (
@@ -209,9 +242,10 @@ export function SettingsPage() {
           )}
         </button>
         <button
-          onClick={() => setActiveSection('solver')}
-          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'solver' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
-            }`}
+          onClick={() => setActiveSection(devUnlocked ? 'solver' : 'general')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${
+            !devUnlocked ? 'hidden' : activeSection === 'solver' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+          }`}
         >
           AI Solver
           {activeSection === 'solver' && (
@@ -338,23 +372,59 @@ export function SettingsPage() {
                 <span className="text-text-primary">Google Calendar Sync</span>
                 <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">Nextcloud Storage</span>
-                {nextcloud.isConnected ? (
-                  <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Connected</span>
-                ) : (
-                  <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Not Connected</span>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">AI Solver (Claude)</span>
-                {solver.isEnabled ? (
-                  <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Enabled</span>
-                ) : (
-                  <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Disabled</span>
-                )}
-              </div>
+              {devUnlocked && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-primary">Nextcloud Storage</span>
+                    {nextcloud.isConnected ? (
+                      <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Connected</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Not Connected</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-primary">AI Solver (Claude)</span>
+                    {solver.isEnabled ? (
+                      <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Enabled</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Disabled</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
+          </section>
+
+          {/* Developer Features */}
+          <section className="bg-secondary border border-border rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-text-primary mb-4">Developer Features</h3>
+            {devUnlocked ? (
+              <div className="space-y-3">
+                <div className="p-4 bg-status-green/10 border border-status-green/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-status-green" />
+                    <span className="text-sm font-medium text-status-green">Unlocked</span>
+                  </div>
+                  <p className="text-sm text-text-muted mt-1">Nextcloud and AI Solver tabs are visible.</p>
+                </div>
+                <Button variant="danger" onClick={handleDevLock}>Lock Developer Features</Button>
+              </div>
+            ) : (
+              <div className="space-y-3 max-w-md">
+                <p className="text-sm text-text-muted">Enter the developer password to unlock Nextcloud storage and AI Solver features.</p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={devPasswordInput}
+                    onChange={(e) => setDevPasswordInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleDevUnlock()}
+                    placeholder="Developer password"
+                    className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <Button variant="primary" onClick={handleDevUnlock}>Unlock</Button>
+                </div>
+              </div>
+            )}
           </section>
         </>
       )}
@@ -421,7 +491,7 @@ export function SettingsPage() {
         </section>
       )}
 
-      {activeSection === 'nextcloud' && (
+      {activeSection === 'nextcloud' && devUnlocked && (
         <section className="bg-secondary border border-border rounded-lg p-6">
           <h3 className="text-lg font-semibold text-text-primary mb-2">Nextcloud Storage</h3>
           <p className="text-sm text-text-muted mb-6">
@@ -530,7 +600,7 @@ export function SettingsPage() {
         </section>
       )}
 
-      {activeSection === 'solver' && (
+      {activeSection === 'solver' && devUnlocked && (
         <section className="bg-secondary border border-border rounded-lg p-6">
           <h3 className="text-lg font-semibold text-text-primary mb-2">AI Solver (Claude)</h3>
           <p className="text-sm text-text-muted mb-6">

@@ -9,6 +9,7 @@ import { useGradescopeStore } from '@/store/gradescopeStore'
 import { useMoodleStore } from '@/store/moodleStore'
 import { useNextcloudStore } from '@/store/nextcloudStore'
 import { useSolverStore } from '@/store/solverStore'
+import { useUIStore } from '@/store/uiStore'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -48,6 +49,7 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   const checkMoodleStatus = useMoodleStore((state) => state.checkStatus)
   const checkNextcloudStatus = useNextcloudStore((state) => state.checkStatus)
   const checkSolverStatus = useSolverStore((state) => state.checkStatus)
+  const setDevUnlocked = useUIStore((state) => state.setDevUnlocked)
 
   useEffect(() => {
     checkUser()
@@ -67,6 +69,10 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
       checkMoodleStatus().catch(() => {})
       checkNextcloudStatus().catch(() => {})
       checkSolverStatus().catch(() => {})
+      // Hydrate dev unlock status from user prefs
+      if (currentUser.prefs?.devUnlocked) {
+        setDevUnlocked(true)
+      }
     } catch (error) {
       setUser(null)
       setAssignmentUserId(null)
