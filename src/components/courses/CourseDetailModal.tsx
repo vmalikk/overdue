@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { Course, GradedItem, GradeWeight } from '@/types/course'
 import { useCourseStore } from '@/store/courseStore'
 import { useUIStore } from '@/store/uiStore'
+import { useNextcloudStore, NextcloudItem } from '@/store/nextcloudStore'
 import clsx from 'clsx'
 
 interface CourseDetailModalProps {
@@ -18,7 +19,8 @@ interface CourseDetailModalProps {
 
 export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDetailModalProps) {
     const { updateCourse } = useCourseStore()
-    const { showToast } = useUIStore()
+    const { showToast, devUnlocked } = useUIStore()
+    const nextcloud = useNextcloudStore()
 
     // State for view navigation
     const [activeCategory, setActiveCategory] = useState<string | null>(null)
@@ -32,6 +34,12 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
     // Local state for editing weights
     const [isEditingWeights, setIsEditingWeights] = useState(false)
     const [editedWeights, setEditedWeights] = useState<GradeWeight[]>([])
+
+    // Nextcloud folder browser state
+    const [ncItems, setNcItems] = useState<NextcloudItem[]>([])
+    const [ncPath, setNcPath] = useState('')
+    const [ncLoading, setNcLoading] = useState(false)
+    const [ncExpanded, setNcExpanded] = useState(false)
 
     // Initialize edited weights when opening
     useMemo(() => {
@@ -47,8 +55,49 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
         if (!isOpen) {
             setActiveCategory(null)
             setIsAddingGrade(false)
+            setNcExpanded(false)
+            setNcItems([])
+            setNcPath('')
         }
     }, [isOpen])
+
+    // Load Nextcloud folder when expanded
+    const loadNcFolder = async (path: string) => {
+        setNcLoading(true)
+        try {
+            const items = await nextcloud.listFiles(path)
+            setNcItems(items)
+            setNcPath(path)
+        } finally {
+            setNcLoading(false)
+        }
+    }
+
+    const handleNcExpand = () => {
+        if (!ncExpanded && course) {
+            const safeName = (course.name || course.code).replace(/[^a-zA-Z0-9 _\-]/g, '').trim()
+            loadNcFolder(`/Overdue/${safeName}`)
+        }
+        setNcExpanded(!ncExpanded)
+    }
+
+    const navigateToFolder = (path: string) => {
+        loadNcFolder(path)
+    }
+
+    const navigateUp = () => {
+        const parent = ncPath.substring(0, ncPath.lastIndexOf('/')) || '/Overdue'
+        if (parent.startsWith('/Overdue')) {
+            loadNcFolder(parent)
+        }
+    }
+
+    const formatFileSize = (bytes?: number) => {
+        if (!bytes) return ''
+        if (bytes < 1024) return `${bytes} B`
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    }
 
     if (!course) return null
 
@@ -204,6 +253,75 @@ export function CourseDetailModal({ course, isOpen, onClose, onEdit }: CourseDet
                         <div className="pt-4">
                             {onEdit && <Button variant="secondary" className="w-full" onClick={onEdit}>Edit Course Details</Button>}
                         </div>
+
+                        {/* Nextcloud Folder Browser */}
+                        {devUnlocked && nextcloud.isConnected && (
+                            <div className="pt-2">
+                                <button
+                                    onClick={handleNcExpand}
+                                    className="w-full flex items-center justify-between text-sm font-semibold text-text-muted uppercase tracking-wider hover:text-text-primary transition-colors"
+                                >
+                                    <span className="flex items-center gap-1.5">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                        Nextcloud Files
+                                    </span>
+                                    <svg className={`w-4 h-4 transition-transform ${ncExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+
+                                {ncExpanded && (
+                                    <div className="mt-2 bg-surface border border-border rounded-lg overflow-hidden">
+                                        {/* Path breadcrumb & back */}
+                                        <div className="flex items-center gap-1 px-3 py-2 bg-background text-xs text-text-muted border-b border-border">
+                                            {ncPath !== `/Overdue/${(course?.name || course?.code || '').replace(/[^a-zA-Z0-9 _\-]/g, '').trim()}` && (
+                                                <button onClick={navigateUp} className="hover:text-text-primary mr-1" title="Go up">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                                </button>
+                                            )}
+                                            <span className="truncate">{ncPath.replace('/Overdue/', '')}</span>
+                                        </div>
+
+                                        {ncLoading ? (
+                                            <div className="flex items-center justify-center py-6 text-text-muted text-sm">
+                                                <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                                Loading...
+                                            </div>
+                                        ) : ncItems.length === 0 ? (
+                                            <div className="text-center py-6 text-text-muted text-sm">No files yet</div>
+                                        ) : (
+                                            <ul className="divide-y divide-border max-h-64 overflow-y-auto">
+                                                {ncItems
+                                                    .sort((a, b) => {
+                                                        if (a.type === 'directory' && b.type !== 'directory') return -1
+                                                        if (a.type !== 'directory' && b.type === 'directory') return 1
+                                                        return a.name.localeCompare(b.name)
+                                                    })
+                                                    .map((item) => (
+                                                        <li key={item.path}>
+                                                            {item.type === 'directory' ? (
+                                                                <button
+                                                                    onClick={() => navigateToFolder(item.path)}
+                                                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-background transition-colors text-left"
+                                                                >
+                                                                    <svg className="w-4 h-4 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                                                    <span className="truncate">{item.name}</span>
+                                                                </button>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary">
+                                                                    <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                                                    <span className="truncate flex-1">{item.name}</span>
+                                                                    {item.size != null && (
+                                                                        <span className="text-xs text-text-muted shrink-0">{formatFileSize(item.size)}</span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 

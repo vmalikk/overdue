@@ -7,6 +7,14 @@ export interface NextcloudFile {
   path: string
 }
 
+export interface NextcloudItem {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+  size?: number
+  lastmod?: string
+}
+
 interface NextcloudStore {
   isConnected: boolean
   isLoading: boolean
@@ -17,6 +25,7 @@ interface NextcloudStore {
   connect: (url: string, username: string, password: string) => Promise<void>
   disconnect: () => Promise<void>
   uploadFile: (file: File, courseName: string) => Promise<NextcloudFile | null>
+  listFiles: (path: string) => Promise<NextcloudItem[]>
   downloadFileUrl: (path: string) => string
   deleteFile: (path: string) => Promise<void>
 }
@@ -103,6 +112,21 @@ export const useNextcloudStore = create<NextcloudStore>()(
 
       downloadFileUrl: (path: string) => {
         return `/api/storage/nextcloud/download?path=${encodeURIComponent(path)}`
+      },
+
+      listFiles: async (path: string) => {
+        try {
+          const { jwt } = await account.createJWT()
+          const res = await fetch(`/api/storage/nextcloud/list?path=${encodeURIComponent(path)}`, {
+            headers: { Authorization: `Bearer ${jwt}` },
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error)
+          return data.items as NextcloudItem[]
+        } catch (error) {
+          console.error('List files failed:', error)
+          return []
+        }
       },
 
       deleteFile: async (path: string) => {

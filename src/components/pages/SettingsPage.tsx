@@ -256,176 +256,131 @@ export function SettingsPage() {
 
       {activeSection === 'general' && (
         <>
-          {/* Data Management Section */}
-          <section className="bg-secondary border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Data Management</h3>
-
-            <div className="space-y-4">
-              {/* Export Data */}
-              <div className="flex items-start justify-between p-4 bg-background rounded-lg">
-                <div>
-                  <h4 className="font-medium text-text-primary mb-1">Export Data</h4>
-                  <p className="text-sm text-text-muted">
-                    Download all your assignments and courses as a JSON file
-                  </p>
+          {/* Top row: Data Management + Visual Effects side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section className="bg-secondary border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">Data Management</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                  <div className="min-w-0 mr-3">
+                    <h4 className="font-medium text-text-primary text-sm">Export Data</h4>
+                    <p className="text-xs text-text-muted">Download assignments &amp; courses as JSON</p>
+                  </div>
+                  <Button onClick={handleExport} disabled={isExporting} variant="secondary">
+                    {isExporting ? '...' : 'Export'}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleExport}
-                  disabled={isExporting}
-                  variant="secondary"
-                >
-                  {isExporting ? 'Exporting...' : 'Export'}
-                </Button>
+                <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-status-red/20">
+                  <div className="min-w-0 mr-3">
+                    <h4 className="font-medium text-status-red text-sm">Clear All Data</h4>
+                    <p className="text-xs text-text-muted">{assignments.length} assignments, {courses.length} courses</p>
+                  </div>
+                  <Button onClick={handleClearAll} variant="danger" disabled={isClearing}>
+                    {isClearing ? '...' : 'Clear'}
+                  </Button>
+                </div>
               </div>
+            </section>
 
-              {/* Clear All Data */}
-              <div className="flex items-start justify-between p-4 bg-background rounded-lg border border-status-red/30">
-                <div>
-                  <h4 className="font-medium text-status-red mb-1">Clear All Data</h4>
-                  <p className="text-sm text-text-muted">
-                    Permanently delete all {assignments.length} assignments and {courses.length} courses
-                  </p>
-                </div>
-                <Button onClick={handleClearAll} variant="danger" disabled={isClearing}>
-                  {isClearing ? 'Deleting...' : 'Clear All'}
-                </Button>
-              </div>
-            </div>
-          </section>
-
-          {/* Visual Effects */}
-          <section className="bg-secondary border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Visual Effects</h3>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-background rounded-lg">
-                <div>
-                  <h4 className="font-medium text-text-primary mb-1">Let it Snow</h4>
-                  <p className="text-sm text-text-muted">
-                    Add a festive snowfall animation to your screen
-                  </p>
-                </div>
-                <button
-                  onClick={toggleSnow}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    snowEnabled ? 'bg-blue-500' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      snowEnabled ? 'translate-x-6' : 'translate-x-1'
+            <section className="bg-secondary border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">Preferences</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-text-primary text-sm">Let it Snow</h4>
+                    <p className="text-xs text-text-muted">Festive snowfall animation</p>
+                  </div>
+                  <button
+                    onClick={toggleSnow}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      snowEnabled ? 'bg-blue-500' : 'bg-gray-600'
                     }`}
-                  />
-                </button>
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      snowEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-text-primary text-sm">Theme</h4>
+                    <p className="text-xs text-text-muted">Visual appearance</p>
+                  </div>
+                  <span className="text-sm text-text-primary font-medium">Dark</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-text-primary text-sm">Storage</h4>
+                    <p className="text-xs text-text-muted">Where your data lives</p>
+                  </div>
+                  <span className="text-sm text-text-primary font-medium">
+                    {nextcloud.isConnected ? 'Nextcloud' : 'Appwrite'}
+                  </span>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
-          {/* App Information */}
-          <section className="bg-secondary border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">About</h3>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Version</span>
-                <span className="text-text-primary font-medium">1.0.0</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Storage</span>
-                <span className="text-text-primary font-medium">
-                  {nextcloud.isConnected ? 'Nextcloud (Self-hosted)' : 'Appwrite'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Theme</span>
-                <span className="text-text-primary font-medium">Dark Mode</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Features */}
+          {/* Features Status — full width grid */}
           <section className="bg-secondary border border-border rounded-lg p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">Features Status</h3>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">Assignment Tracking</span>
-                <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">Course Management</span>
-                <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">Cloud Sync</span>
-                <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">AI-Powered Parsing</span>
-                {apiKey ? (
-                  <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active (BYOK)</span>
-                ) : (
-                  <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Pending Key</span>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-text-primary">Google Calendar Sync</span>
-                <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
-              </div>
-              {devUnlocked && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-primary">Nextcloud Storage</span>
-                    {nextcloud.isConnected ? (
-                      <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Connected</span>
-                    ) : (
-                      <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Not Connected</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-primary">AI Solver (Claude)</span>
-                    {solver.isEnabled ? (
-                      <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Enabled</span>
-                    ) : (
-                      <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Disabled</span>
-                    )}
-                  </div>
-                </>
-              )}
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {[
+                { name: 'Assignments', active: true },
+                { name: 'Course Management', active: true },
+                { name: 'Cloud Sync', active: true },
+                { name: 'AI Parsing', active: !!apiKey, label: apiKey ? 'BYOK' : 'Pending Key' },
+                { name: 'Calendar Sync', active: true },
+                ...(devUnlocked ? [
+                  { name: 'Nextcloud', active: nextcloud.isConnected, label: nextcloud.isConnected ? 'Connected' : 'Not Connected' },
+                  { name: 'AI Solver', active: solver.isEnabled, label: solver.isEnabled ? 'Enabled' : 'Disabled' },
+                ] : []),
+              ].map((feat) => (
+                <div key={feat.name} className="flex items-center justify-between p-3 bg-background rounded-lg">
+                  <span className="text-sm text-text-primary">{feat.name}</span>
+                  <span className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                    feat.active ? 'bg-status-green/20 text-status-green' : 'bg-secondary text-text-muted'
+                  }`}>
+                    {feat.label || (feat.active ? 'Active' : 'Off')}
+                  </span>
+                </div>
+              ))}
             </div>
           </section>
 
           {/* Developer Features */}
           <section className="bg-secondary border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Developer Features</h3>
-            {devUnlocked ? (
-              <div className="space-y-3">
-                <div className="p-4 bg-status-green/10 border border-status-green/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-status-green" />
-                    <span className="text-sm font-medium text-status-green">Unlocked</span>
-                  </div>
-                  <p className="text-sm text-text-muted mt-1">Nextcloud and AI Solver tabs are visible.</p>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-text-primary">Developer Features</h3>
+              {devUnlocked && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-status-green" />
+                  <span className="text-xs font-medium text-status-green">Unlocked</span>
                 </div>
-                <Button variant="danger" onClick={handleDevLock}>Lock Developer Features</Button>
+              )}
+            </div>
+            {devUnlocked ? (
+              <div className="mt-3 flex items-center justify-between p-3 bg-background rounded-lg">
+                <p className="text-sm text-text-muted">Nextcloud and AI Solver tabs are available.</p>
+                <Button variant="danger" onClick={handleDevLock}>Lock</Button>
               </div>
             ) : (
-              <div className="space-y-3 max-w-md">
-                <p className="text-sm text-text-muted">Enter the developer password to unlock Nextcloud storage and AI Solver features.</p>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={devPasswordInput}
-                    onChange={(e) => setDevPasswordInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleDevUnlock()}
-                    placeholder="Developer password"
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <Button variant="primary" onClick={handleDevUnlock}>Unlock</Button>
-                </div>
+              <div className="mt-3 flex items-center gap-3">
+                <input
+                  type="password"
+                  value={devPasswordInput}
+                  onChange={(e) => setDevPasswordInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleDevUnlock()}
+                  placeholder="Developer password"
+                  className="flex-1 max-w-xs px-3 py-2 bg-background border border-border rounded-md text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Button variant="primary" onClick={handleDevUnlock}>Unlock</Button>
               </div>
             )}
           </section>
+
+          {/* Version */}
+          <p className="text-xs text-text-muted text-center">Overdue v1.0.0</p>
         </>
       )}
 
@@ -450,7 +405,7 @@ export function SettingsPage() {
             The key is stored locally on your device and is never saved to our servers.
           </p>
 
-          <div className="space-y-4 max-w-xl">
+          <div className="space-y-4">
             <div>
               <label htmlFor="apiKey" className="block text-sm font-medium text-text-primary mb-1">
                 API Key
@@ -501,7 +456,7 @@ export function SettingsPage() {
           </p>
 
           {nextcloud.isConnected ? (
-            <div className="space-y-4 max-w-xl">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="p-4 bg-status-green/10 border border-status-green/30 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full bg-status-green" />
@@ -513,25 +468,27 @@ export function SettingsPage() {
                   <strong>Files stored in:</strong> /Overdue/
                 </p>
               </div>
-              <Button
-                variant="danger"
-                onClick={async () => {
-                  if (confirm('Disconnect Nextcloud? Your files on Nextcloud will not be deleted.')) {
-                    try {
-                      await nextcloud.disconnect()
-                      showToast('Nextcloud disconnected', 'info')
-                    } catch {
-                      showToast('Failed to disconnect', 'error')
+              <div className="flex items-center">
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    if (confirm('Disconnect Nextcloud? Your files on Nextcloud will not be deleted.')) {
+                      try {
+                        await nextcloud.disconnect()
+                        showToast('Nextcloud disconnected', 'info')
+                      } catch {
+                        showToast('Failed to disconnect', 'error')
+                      }
                     }
-                  }
-                }}
-                disabled={nextcloud.isLoading}
-              >
-                {nextcloud.isLoading ? 'Disconnecting...' : 'Disconnect'}
-              </Button>
+                  }}
+                  disabled={nextcloud.isLoading}
+                >
+                  {nextcloud.isLoading ? 'Disconnecting...' : 'Disconnect'}
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="space-y-4 max-w-xl">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">Nextcloud URL</label>
                 <input
@@ -574,7 +531,7 @@ export function SettingsPage() {
                   Generate an App Password in Nextcloud: Settings → Security → Devices &amp; sessions
                 </p>
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="lg:col-span-3 flex gap-3 pt-2">
                 <Button
                   variant="primary"
                   onClick={async () => {
@@ -611,7 +568,7 @@ export function SettingsPage() {
             and you need a valid Claude.ai session key.
           </p>
 
-          <div className="space-y-6 max-w-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Enable/Disable Toggle */}
             <div className="flex items-center justify-between p-4 bg-background rounded-lg">
               <div>
