@@ -54,9 +54,6 @@ export function StorageUsage() {
     <div className="bg-white rounded-xl shadow-sm border border-border p-4">
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-text-primary">Storage</h3>
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-status-green/10 text-status-green">
-          Appwrite Cloud
-        </span>
       </div>
 
       <div className="space-y-3">

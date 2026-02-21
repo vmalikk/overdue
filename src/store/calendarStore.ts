@@ -6,9 +6,11 @@ interface CalendarStore {
   config: CalendarConfig
   syncState: SyncState
   events: CalendarEvent[]
+  showOfficeHours: boolean
 
   // Actions
   setConnected: (connected: boolean) => void
+  setShowOfficeHours: (show: boolean) => void
   setCalendarId: (calendarId: string) => void
   setTokens: (accessToken: string, refreshToken: string) => void
   setLastSync: (date: Date) => void
@@ -53,6 +55,9 @@ export const useCalendarStore = create<CalendarStore>()(
       config: defaultConfig,
       syncState: defaultSyncState,
       events: [],
+      showOfficeHours: true,
+
+      setShowOfficeHours: (show: boolean) => set({ showOfficeHours: show }),
 
       // Config actions
       setConnected: (connected: boolean) =>
@@ -150,7 +155,7 @@ export const useCalendarStore = create<CalendarStore>()(
     }),
     {
       name: 'calendar-storage',
-      partialize: (state) => ({ config: state.config }), // Only persist config
+      partialize: (state) => ({ config: state.config, showOfficeHours: state.showOfficeHours }),
     }
   )
 )

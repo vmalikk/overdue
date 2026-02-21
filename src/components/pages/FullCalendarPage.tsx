@@ -26,6 +26,8 @@ export function FullCalendarPage() {
   const { assignments } = useAssignmentStore()
   const { config, events, setEvents, setConnected } = useCalendarStore()
   const { courses } = useCourseStore()
+  const showOfficeHours = useCalendarStore((s) => s.showOfficeHours)
+  const setShowOfficeHours = useCalendarStore((s) => s.setShowOfficeHours)
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<CalendarViewType>('week')
@@ -184,18 +186,13 @@ export function FullCalendarPage() {
     return { taskAssignments: tasks, dbEvents: dbEvts }
   }, [assignments])
 
-  // Combine remote events, DB events, and course office hours
+  // Combine remote events, DB events, and optionally course office hours
   const allEvents = useMemo(() => {
     const { start, end } = getVisibleDateRange(currentDate, view)
-    const officeHours = getOfficeHourEvents(courses, start, end)
-
-    // Deduplication logic (Optional):
-    // If we have a Google Event (blue) and a DB Event (purple) with same googleCalendarEventId,
-    // which one do we show? For now show both to confirm import worked, or filter?
-    // Let's show both but maybe DB events are clearer "Imported" ones.
+    const officeHours = showOfficeHours ? getOfficeHourEvents(courses, start, end) : []
 
     return [...events, ...dbEvents, ...officeHours]
-  }, [currentDate, view, courses, events, dbEvents])
+  }, [currentDate, view, courses, events, dbEvents, showOfficeHours])
 
   // Navigation handlers
   const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
@@ -259,6 +256,8 @@ export function FullCalendarPage() {
           setCurrentDate(date)
           setSelectedDate(date)
         }}
+        showOfficeHours={showOfficeHours}
+        onToggleOfficeHours={setShowOfficeHours}
       />
 
       {/* Main Content Area */}
@@ -328,14 +327,10 @@ export function FullCalendarPage() {
           />
         </div>
       )}
-      {/* Use this space for right sidebar from screenshot if no date selected? 
-           Screenshot has "Invite to Notion Calendar" etc. 
-           For now, let's keep it clean or show a placeholder shortcuts panel. */}
       {!selectedDate && (
         <div className="hidden lg:block w-64 border-l border-border bg-background p-4">
-          <h4 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">Useful shortcuts</h4>
+          <h4 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">Keyboard shortcuts</h4>
           <div className="space-y-2 text-sm text-text-secondary">
-            <div className="flex justify-between"><span>Command menu</span><span className="text-text-muted">⌘ K</span></div>
             <div className="flex justify-between"><span>Today</span><span className="text-text-muted">T</span></div>
             <div className="flex justify-between"><span>Next period</span><span className="text-text-muted">J</span></div>
             <div className="flex justify-between"><span>Prev period</span><span className="text-text-muted">K</span></div>

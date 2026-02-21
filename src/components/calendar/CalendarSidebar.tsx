@@ -16,6 +16,8 @@ interface CalendarSidebarProps {
   userEmail?: string
   currentDate?: Date
   onDateChange?: (date: Date) => void
+  showOfficeHours: boolean
+  onToggleOfficeHours: (show: boolean) => void
 }
 
 export function CalendarSidebar({
@@ -26,7 +28,9 @@ export function CalendarSidebar({
   isConnected,
   userEmail,
   currentDate,
-  onDateChange
+  onDateChange,
+  showOfficeHours,
+  onToggleOfficeHours
 }: CalendarSidebarProps) {
   const { showToast } = useUIStore()
 
@@ -48,24 +52,6 @@ export function CalendarSidebar({
       {/* Calendar Accounts */}
       <div className="px-4 flex-1">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-            Creating
-          </h3>
-          <div className="flex gap-1">
-            {/* Icons would go here */}
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex items-center gap-2 p-2 rounded hover:bg-secondary cursor-pointer">
-            <div className="w-4 h-4 rounded border border-text-muted flex items-center justify-center">
-              <div className="w-2 h-2 rounded bg-primary" />
-            </div>
-            <span className="text-sm font-medium text-text-primary">Assignments</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-2 mt-6">
           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
             Calendars
           </h3>
@@ -118,15 +104,22 @@ export function CalendarSidebar({
         </div>
       </div>
 
-      <div className="p-4 border-t border-border">
-        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-          Notion Apps
-        </h3>
-        <div className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary cursor-pointer text-text-secondary">
-          <div className="w-4 h-4 bg-primary/20 rounded"></div>
-          <span className="text-sm">Overdue</span>
+      {/* Office Hours Toggle */}
+      <div className="px-4 pb-4">
+        <div
+          className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary cursor-pointer"
+          onClick={() => onToggleOfficeHours(!showOfficeHours)}
+        >
+          <div className={clsx(
+            "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+            showOfficeHours ? "border-transparent bg-orange-500" : "border-text-muted"
+          )}>
+            {showOfficeHours && (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            )}
+          </div>
+          <span className="text-sm text-text-secondary">Office Hours</span>
         </div>
       </div>
-    </div>
-  )
-}
