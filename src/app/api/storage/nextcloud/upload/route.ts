@@ -34,14 +34,24 @@ export async function POST(request: NextRequest) {
 
     const client = getNextcloudClient(user)
 
-    // Organize files: /Overdue/CourseName/filename
+    // Organize files: /Overdue/CourseName/FileBaseName/filename
     const safeCourse = courseName.replace(/[^a-zA-Z0-9 _\-]/g, '').trim() || 'General'
-    const folderPath = `/Overdue/${safeCourse}`
+    const fileName = file.name
+    // Strip extension to get the base name for the subfolder
+    const baseName = fileName.replace(/\.[^.]+$/, '').trim() || fileName
+    const coursePath = `/Overdue/${safeCourse}`
+    const folderPath = `${coursePath}/${baseName}`
 
     // Ensure directories exist
     try {
       if (!(await client.exists('/Overdue'))) {
         await client.createDirectory('/Overdue')
+      }
+    } catch { /* may already exist */ }
+
+    try {
+      if (!(await client.exists(coursePath))) {
+        await client.createDirectory(coursePath)
       }
     } catch { /* may already exist */ }
 
@@ -54,7 +64,6 @@ export async function POST(request: NextRequest) {
     // Upload
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    const fileName = file.name
     const fullPath = `${folderPath}/${fileName}`
 
     await client.putFileContents(fullPath, buffer, { overwrite: true })
