@@ -5,6 +5,8 @@ import { account } from '@/lib/appwrite/client'
 import { Models, OAuthProvider, ID } from 'appwrite'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
+import { useGradescopeStore } from '@/store/gradescopeStore'
+import { useMoodleStore } from '@/store/moodleStore'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -40,6 +42,8 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   const setCoursesUserId = useCourseStore((state) => state.setUserId)
   const loadAssignments = useAssignmentStore((state) => state.loadAssignments)
   const loadCourses = useCourseStore((state) => state.loadCourses)
+  const checkGradescopeStatus = useGradescopeStore((state) => state.checkStatus)
+  const checkMoodleStatus = useMoodleStore((state) => state.checkStatus)
 
   useEffect(() => {
     checkUser()
@@ -53,6 +57,10 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
       setAssignmentUserId(currentUser.$id)
       setCoursesUserId(currentUser.$id)
       await Promise.all([loadAssignments(), loadCourses()])
+      // Hydrate integration connection status from server
+      // (non-blocking — don't await so it doesn't slow down initial load)
+      checkGradescopeStatus().catch(() => {})
+      checkMoodleStatus().catch(() => {})
     } catch (error) {
       setUser(null)
       setAssignmentUserId(null)
@@ -79,6 +87,9 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     setAssignmentUserId(currentUser.$id)
     setCoursesUserId(currentUser.$id)
     await Promise.all([loadAssignments(), loadCourses()])
+    // Hydrate integration connection status from server
+    checkGradescopeStatus().catch(() => {})
+    checkMoodleStatus().catch(() => {})
   }
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
@@ -91,6 +102,9 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
     setAssignmentUserId(currentUser.$id)
     setCoursesUserId(currentUser.$id)
     await Promise.all([loadAssignments(), loadCourses()])
+    // Hydrate integration connection status from server
+    checkGradescopeStatus().catch(() => {})
+    checkMoodleStatus().catch(() => {})
   }
 
   const resetPassword = async (email: string) => {
