@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Assignment } from '@/types/assignment'
 import { useCourseStore } from '@/store/courseStore'
 import { useUIStore } from '@/store/uiStore'
+import { useAssignmentStore } from '@/store/assignmentStore'
 import { useNextcloudStore } from '@/store/nextcloudStore'
 import { useSolverStore } from '@/store/solverStore'
 import { CourseBadge } from '@/components/courses/CourseBadge'
@@ -29,6 +30,7 @@ export function AssignmentDetailModal({
 }: AssignmentDetailModalProps) {
   const { getCourseById } = useCourseStore()
   const { openEditModal } = useUIStore()
+  const { updateAssignment } = useAssignmentStore()
   const nextcloud = useNextcloudStore()
   const solver = useSolverStore()
   const [fileUrl, setFileUrl] = useState<string | null>(null)
@@ -258,9 +260,10 @@ export function AssignmentDetailModal({
                 try {
                   const result = await nextcloud.uploadFile(file, course.name || course.code)
                   if (result) {
-                    // File uploaded to Nextcloud - in a real scenario here you'd update the assignment
-                    // with the new file reference via assignmentStore.updateAssignment()
-                    alert(`File uploaded to Nextcloud: ${result.path}`)
+                    const existing = assignment.nextcloudFiles || []
+                    await updateAssignment(assignment.id, {
+                      nextcloudFiles: [...existing, result],
+                    })
                   }
                 } finally {
                   setIsUploading(false)
