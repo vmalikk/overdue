@@ -35,6 +35,13 @@ export interface Assignment {
   attachmentFileId?: string
   attachmentFileName?: string
 
+  // Nextcloud files
+  nextcloudFiles?: { name: string; path: string }[]
+
+  // AI Solver
+  solvedFilePath?: string
+  solverStatus?: 'pending' | 'running' | 'completed' | 'failed'
+
   // Metadata
   createdAt: Date
   updatedAt: Date

@@ -7,6 +7,8 @@ import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
 import { useGradescopeStore } from '@/store/gradescopeStore'
 import { useMoodleStore } from '@/store/moodleStore'
+import { useNextcloudStore } from '@/store/nextcloudStore'
+import { useSolverStore } from '@/store/solverStore'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -44,6 +46,8 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
   const loadCourses = useCourseStore((state) => state.loadCourses)
   const checkGradescopeStatus = useGradescopeStore((state) => state.checkStatus)
   const checkMoodleStatus = useMoodleStore((state) => state.checkStatus)
+  const checkNextcloudStatus = useNextcloudStore((state) => state.checkStatus)
+  const checkSolverStatus = useSolverStore((state) => state.checkStatus)
 
   useEffect(() => {
     checkUser()
@@ -61,6 +65,8 @@ export function AppwriteAuthProvider({ children }: { children: React.ReactNode }
       // (non-blocking — don't await so it doesn't slow down initial load)
       checkGradescopeStatus().catch(() => {})
       checkMoodleStatus().catch(() => {})
+      checkNextcloudStatus().catch(() => {})
+      checkSolverStatus().catch(() => {})
     } catch (error) {
       setUser(null)
       setAssignmentUserId(null)

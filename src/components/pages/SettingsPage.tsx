@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/store/uiStore'
 import { useAssignmentStore } from '@/store/assignmentStore'
 import { useCourseStore } from '@/store/courseStore'
+import { useNextcloudStore } from '@/store/nextcloudStore'
+import { useSolverStore } from '@/store/solverStore'
 import { account } from '@/lib/appwrite/client'
 import { CalendarSyncSection } from './CalendarSyncSection'
 import { GradescopeSyncSection } from './GradescopeSyncSection'
@@ -14,12 +16,24 @@ export function SettingsPage() {
   const { showToast, apiKey, setApiKey, snowEnabled, toggleSnow } = useUIStore()
   const { deleteAllAssignments, assignments } = useAssignmentStore()
   const { deleteAllCourses, courses } = useCourseStore()
+  const nextcloud = useNextcloudStore()
+  const solver = useSolverStore()
   const [isExporting, setIsExporting] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
-  const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'gradescope' | 'moodle' | 'ai'>('general')
+  const [activeSection, setActiveSection] = useState<'general' | 'sync' | 'gradescope' | 'moodle' | 'ai' | 'nextcloud' | 'solver'>('general')
   const [inputKey, setInputKey] = useState('')
   const [isKeyVisible, setIsKeyVisible] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Nextcloud form state
+  const [ncUrl, setNcUrl] = useState('')
+  const [ncUsername, setNcUsername] = useState('')
+  const [ncPassword, setNcPassword] = useState('')
+  const [ncPasswordVisible, setNcPasswordVisible] = useState(false)
+
+  // Solver form state
+  const [sessionKeyInput, setSessionKeyInput] = useState('')
+  const [sessionKeyVisible, setSessionKeyVisible] = useState(false)
 
   // Sync apiKey to input when it changes or when section changes
   useEffect(() => {
@@ -184,6 +198,26 @@ export function SettingsPage() {
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
           )}
         </button>
+        <button
+          onClick={() => setActiveSection('nextcloud')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'nextcloud' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
+        >
+          Nextcloud
+          {activeSection === 'nextcloud' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveSection('solver')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap ${activeSection === 'solver' ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
+        >
+          AI Solver
+          {activeSection === 'solver' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-priority-medium" />
+          )}
+        </button>
       </div>
 
       {activeSection === 'general' && (
@@ -264,7 +298,9 @@ export function SettingsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted">Storage</span>
-                <span className="text-text-primary font-medium">Appwrite Cloud</span>
+                <span className="text-text-primary font-medium">
+                  {nextcloud.isConnected ? 'Nextcloud (Self-hosted)' : 'Appwrite'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted">Theme</span>
@@ -301,6 +337,22 @@ export function SettingsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-text-primary">Google Calendar Sync</span>
                 <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Active</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-primary">Nextcloud Storage</span>
+                {nextcloud.isConnected ? (
+                  <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Connected</span>
+                ) : (
+                  <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Not Connected</span>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-primary">AI Solver (Claude)</span>
+                {solver.isEnabled ? (
+                  <span className="px-2 py-1 bg-status-green/20 text-status-green text-xs rounded">Enabled</span>
+                ) : (
+                  <span className="px-2 py-1 bg-secondary text-text-muted text-xs rounded">Disabled</span>
+                )}
               </div>
             </div>
           </section>
@@ -364,6 +416,225 @@ export function SettingsPage() {
                   {isLoading ? 'Removing...' : 'Remove Key'}
                 </Button>
               )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {activeSection === 'nextcloud' && (
+        <section className="bg-secondary border border-border rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">Nextcloud Storage</h3>
+          <p className="text-sm text-text-muted mb-6">
+            Connect your self-hosted Nextcloud instance to store assignment files, solutions, and other documents in an <strong>/Overdue</strong> folder.
+            <br />
+            Use an App Password for security — you can create one at <em>Settings → Security → Devices &amp; sessions</em> in Nextcloud.
+          </p>
+
+          {nextcloud.isConnected ? (
+            <div className="space-y-4 max-w-xl">
+              <div className="p-4 bg-status-green/10 border border-status-green/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-status-green" />
+                  <span className="text-sm font-medium text-status-green">Connected</span>
+                </div>
+                <p className="text-sm text-text-muted">
+                  <strong>URL:</strong> {nextcloud.url}<br />
+                  <strong>Username:</strong> {nextcloud.username}<br />
+                  <strong>Files stored in:</strong> /Overdue/
+                </p>
+              </div>
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  if (confirm('Disconnect Nextcloud? Your files on Nextcloud will not be deleted.')) {
+                    try {
+                      await nextcloud.disconnect()
+                      showToast('Nextcloud disconnected', 'info')
+                    } catch {
+                      showToast('Failed to disconnect', 'error')
+                    }
+                  }
+                }}
+                disabled={nextcloud.isLoading}
+              >
+                {nextcloud.isLoading ? 'Disconnecting...' : 'Disconnect'}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 max-w-xl">
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Nextcloud URL</label>
+                <input
+                  type="url"
+                  value={ncUrl}
+                  onChange={(e) => setNcUrl(e.target.value)}
+                  placeholder="https://cloud.example.com"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Username</label>
+                <input
+                  type="text"
+                  value={ncUsername}
+                  onChange={(e) => setNcUsername(e.target.value)}
+                  placeholder="your-username"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">App Password</label>
+                <div className="relative">
+                  <input
+                    type={ncPasswordVisible ? 'text' : 'password'}
+                    value={ncPassword}
+                    onChange={(e) => setNcPassword(e.target.value)}
+                    placeholder="xxxxx-xxxxx-xxxxx-xxxxx-xxxxx"
+                    className="w-full px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setNcPasswordVisible(!ncPasswordVisible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary"
+                  >
+                    {ncPasswordVisible ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <p className="text-xs text-text-muted mt-1">
+                  Generate an App Password in Nextcloud: Settings → Security → Devices &amp; sessions
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="primary"
+                  onClick={async () => {
+                    if (!ncUrl || !ncUsername || !ncPassword) {
+                      showToast('Please fill in all fields', 'error')
+                      return
+                    }
+                    try {
+                      await nextcloud.connect(ncUrl.replace(/\/+$/, ''), ncUsername, ncPassword)
+                      showToast('Nextcloud connected!', 'success')
+                      setNcPassword('')
+                    } catch (err: any) {
+                      showToast(err.message || 'Connection failed', 'error')
+                    }
+                  }}
+                  disabled={nextcloud.isLoading}
+                >
+                  {nextcloud.isLoading ? 'Connecting...' : 'Connect'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeSection === 'solver' && (
+        <section className="bg-secondary border border-border rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">AI Solver (Claude)</h3>
+          <p className="text-sm text-text-muted mb-6">
+            Automatically solve PDF assignments using Claude AI. The solver downloads your assignment PDF from Nextcloud,
+            sends it to Claude via browser automation, and saves the LaTeX solution back to your Nextcloud.
+            <br /><br />
+            <strong>Requirements:</strong> Nextcloud must be connected, Chrome/Chromium must be installed on the server,
+            and you need a valid Claude.ai session key.
+          </p>
+
+          <div className="space-y-6 max-w-xl">
+            {/* Enable/Disable Toggle */}
+            <div className="flex items-center justify-between p-4 bg-background rounded-lg">
+              <div>
+                <h4 className="font-medium text-text-primary mb-1">Enable AI Solver</h4>
+                <p className="text-sm text-text-muted">
+                  {!nextcloud.isConnected && '⚠️ Requires Nextcloud connection'}
+                </p>
+              </div>
+              <button
+                onClick={() => solver.setEnabled(!solver.isEnabled)}
+                disabled={!nextcloud.isConnected}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  solver.isEnabled ? 'bg-blue-500' : 'bg-gray-600'
+                } ${!nextcloud.isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    solver.isEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Claude Session Key */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Claude Session Key</label>
+              <div className="relative">
+                <input
+                  type={sessionKeyVisible ? 'text' : 'password'}
+                  value={sessionKeyInput}
+                  onChange={(e) => setSessionKeyInput(e.target.value)}
+                  placeholder={solver.claudeSessionKey ? '••••••••' : 'sk-ant-...'}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSessionKeyVisible(!sessionKeyVisible)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary"
+                >
+                  {sessionKeyVisible ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <p className="text-xs text-text-muted mt-2">
+                Get your session key: Open <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 underline">claude.ai</a> → DevTools (F12) → Application → Cookies → copy the <code className="text-xs bg-background px-1 rounded">sessionKey</code> value.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="primary"
+                onClick={async () => {
+                  if (!sessionKeyInput.trim()) {
+                    showToast('Please enter a session key', 'error')
+                    return
+                  }
+                  try {
+                    await solver.saveSessionKey(sessionKeyInput.trim())
+                    setSessionKeyInput('')
+                    showToast('Session key saved!', 'success')
+                  } catch (err: any) {
+                    showToast(err.message || 'Failed to save', 'error')
+                  }
+                }}
+                disabled={isLoading}
+              >
+                Save Session Key
+              </Button>
+              {solver.claudeSessionKey && (
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    if (confirm('Remove Claude session key?')) {
+                      await solver.clearSessionKey()
+                      setSessionKeyInput('')
+                      showToast('Session key removed', 'info')
+                    }
+                  }}
+                >
+                  Remove Key
+                </Button>
+              )}
+            </div>
+
+            {/* How it works */}
+            <div className="p-4 bg-background rounded-lg border border-border">
+              <h4 className="font-medium text-text-primary mb-2">How it works</h4>
+              <ol className="text-sm text-text-muted space-y-1 list-decimal list-inside">
+                <li>Upload a PDF assignment to an assignment via Nextcloud</li>
+                <li>Click "Solve with Claude" on the assignment detail modal</li>
+                <li>The server downloads the PDF, opens Claude.ai with Puppeteer, uploads the PDF, and asks Claude to solve it</li>
+                <li>The LaTeX solution is saved back to your Nextcloud /Overdue/ folder</li>
+                <li>Download the .tex file and compile it locally</li>
+              </ol>
             </div>
           </div>
         </section>
