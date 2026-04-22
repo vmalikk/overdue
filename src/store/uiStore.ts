@@ -20,6 +20,10 @@ interface UIStore {
   // Visual effects
   snowEnabled: boolean
 
+  // Theme
+  theme: 'dark' | 'light'
+  accentHue: number
+
   // Dev features
   devUnlocked: boolean
 
@@ -41,6 +45,8 @@ interface UIStore {
   closeSettings: () => void
   setApiKey: (key: string | null) => void
   toggleSnow: () => void
+  setTheme: (theme: 'dark' | 'light') => void
+  setAccentHue: (hue: number) => void
   setDevUnlocked: (unlocked: boolean) => void
 
   // Actions - Toasts
@@ -69,6 +75,10 @@ export const useUIStore = create<UIStore>()(
       // Visual effects
       snowEnabled: false,
 
+      // Theme
+      theme: 'dark' as const,
+      accentHue: 265,
+
       // Dev features
       devUnlocked: false,
 
@@ -95,6 +105,8 @@ export const useUIStore = create<UIStore>()(
       closeSettings: () => set({ isSettingsOpen: false }),
       setApiKey: (key) => set({ apiKey: key }),
       toggleSnow: () => set((state) => ({ snowEnabled: !state.snowEnabled })),
+      setTheme: (theme) => set({ theme }),
+      setAccentHue: (hue) => set({ accentHue: hue }),
       setDevUnlocked: (unlocked) => set({ devUnlocked: unlocked }),
 
       // Toast actions
@@ -132,7 +144,7 @@ export const useUIStore = create<UIStore>()(
     }),
     {
       name: 'ui-storage',
-      partialize: (state) => ({ apiKey: state.apiKey, snowEnabled: state.snowEnabled, devUnlocked: state.devUnlocked }),
+      partialize: (state) => ({ apiKey: state.apiKey, snowEnabled: state.snowEnabled, devUnlocked: state.devUnlocked, theme: state.theme, accentHue: state.accentHue }),
     }
   )
 )

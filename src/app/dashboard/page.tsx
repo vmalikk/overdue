@@ -21,7 +21,15 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading } = useAuth()
-  const { openQuickAdd, snowEnabled, openSettings, isSettingsOpen, closeSettings } = useUIStore()
+  const { openQuickAdd, snowEnabled, openSettings, isSettingsOpen, closeSettings, theme, accentHue } = useUIStore()
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ah', String(accentHue))
+  }, [accentHue])
 
   const initialTab = (searchParams?.get('tab') as TabType) || 'dashboard'
   const [currentTab, setCurrentTab] = useState<TabType>(initialTab)

@@ -34,20 +34,13 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const [activeSection, setActiveSection] = useState<SectionId>('profile')
-  const { apiKey, setApiKey, snowEnabled, toggleSnow, devUnlocked, setDevUnlocked, showToast } = useUIStore()
+  const { apiKey, setApiKey, snowEnabled, toggleSnow, devUnlocked, setDevUnlocked, showToast, theme, setTheme, accentHue, setAccentHue } = useUIStore()
   const { assignments, deleteAllAssignments } = useAssignmentStore()
   const { courses, deleteAllCourses } = useCourseStore()
   const { user, signOut } = useAuth()
 
-  // Appearance
-  const [accentHue, setAccentHue] = useState(265)
   const [devPasswordInput, setDevPasswordInput] = useState('')
   const DEV_PASSWORD = 'HelloBye123'
-
-  useEffect(() => {
-    const root = document.documentElement
-    root.style.setProperty('--ah', String(accentHue))
-  }, [accentHue])
 
   const handleDevUnlock = async () => {
     if (devPasswordInput === DEV_PASSWORD) {
@@ -185,6 +178,40 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         return (
           <div>
             <p style={sectionLabel}>Appearance</p>
+
+            {/* Theme */}
+            <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 10 }}>Theme</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(['dark', 'light'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 0',
+                      borderRadius: 8,
+                      border: `1px solid ${theme === t ? 'var(--accent-border)' : 'var(--border)'}`,
+                      background: theme === t ? 'var(--accent-glow)' : 'var(--bg4)',
+                      color: theme === t ? 'var(--accent)' : 'var(--text2)',
+                      fontSize: 13,
+                      fontWeight: theme === t ? 600 : 400,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 20 }}>{t === 'dark' ? '🌙' : '☀️'}</span>
+                    <span style={{ textTransform: 'capitalize' }}>{t}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Accent Color */}
             <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
@@ -209,14 +236,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 <div style={{ fontSize: 11, color: 'var(--text3)' }}>Festive snowfall effect</div>
               </div>
               <Toggle value={snowEnabled} onChange={toggleSnow} />
-            </div>
-
-            <div style={{ ...row, opacity: 0.5 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Theme</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>Dark · light mode coming soon</div>
-              </div>
-              <span style={{ fontSize: 11, color: 'var(--text3)', background: 'var(--bg4)', padding: '3px 8px', borderRadius: 99 }}>Dark</span>
             </div>
           </div>
         )
