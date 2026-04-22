@@ -1,0 +1,368 @@
+'use client'
+
+import { useState, useCallback, useEffect } from 'react'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { Select } from '@/components/ui/Select'
+import { CourseSelect } from '@/components/courses/CourseSelect'
+import { NLPInput } from '@/components/ai/NLPInput'
+import { ParsedPreview } from '@/components/ai/ParsedPreview'
+import { useUIStore } from '@/store/uiStore'
+import { useAssignmentStore } from '@/store/assignmentStore'
+import { useCourseStore } from '@/store/courseStore'
+import { useAIStore } from '@/store/aiStore'
+import { AssignmentCategory, AssignmentStatus } from '@/types/assignment'
+import { NLPParseResult } from '@/types/ai'
+import { LIMITS } from '@/config/constants'
+import { MAX_FILE_SIZE } from '@/lib/appwrite/storage'
+
+export function QuickAddForm() {
+  const {
+    isQuickAddOpen, closeQuickAdd,
+    isEditModalOpen, closeEditModal, editingAssignmentId,
+    showToast,
+    apiKey, openSettings
+  } = useUIStore()
+  const { addAssignment, updateAssignment, assignments } = useAssignmentStore()
+  const { getCourseByCode } = useCourseStore()
+  const { isParsingEnabled, clearParseResult } = useAIStore()
+
+  const isOpen = isQuickAddOpen || isEditModalOpen
+  const isEditing = isEditModalOpen && !!editingAssignmentId
+
+  const [formData, setFormData] = useState({
+    title: '',
+    courseId: '',
+    deadline: new Date(),
+    category: AssignmentCategory.ASSIGNMENT,
+    notes: '',
+    file: undefined as File | undefined,
+  })
+
+  // Hydrate form when entering edit mode
+  useEffect(() => {
+    if (isEditing && editingAssignmentId) {
+      const assignment = assignments.find(a => a.id === editingAssignmentId)
+      if (assignment) {
+        setFormData({
+          title: assignment.title,
+          courseId: assignment.courseId,
+          deadline: new Date(assignment.deadline),
+          category: assignment.category,
+          notes: assignment.notes || '',
+          file: undefined, // Cannot edit file easily yet
+        })
+      }
+    } else if (!isOpen) {
+      // Reset when closed
+      setFormData({
+        title: '',
+        courseId: '',
+        deadline: new Date(),
+        category: AssignmentCategory.ASSIGNMENT,
+        notes: '',
+        file: undefined,
+      })
+    }
+  }, [isEditing, editingAssignmentId, assignments, isOpen])
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [parsedResult, setParsedResult] = useState<NLPParseResult | null>(null)
+  const [showManualForm, setShowManualForm] = useState(isEditing)
+
+  // Update showManualForm when editing mode changes
+  useEffect(() => {
+    setShowManualForm(isEditing)
+  }, [isEditing])
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Title is required'
+    } else if (formData.title.length > LIMITS.ASSIGNMENT_TITLE_MAX) {
+      newErrors.title = `Title must be ${LIMITS.ASSIGNMENT_TITLE_MAX} characters or less`
+    }
+
+    if (!formData.courseId) {
+      newErrors.courseId = 'Course is required'
+    }
+
+    if (!formData.deadline) {
+      newErrors.deadline = 'Deadline is required'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleParsed = useCallback((result: NLPParseResult) => {
+    setParsedResult(result)
+    // Pre-fill form with parsed data
+    const parsed = result.parsed
+    setFormData((prev) => ({
+      ...prev,
+      title: parsed.title || prev.title,
+      deadline: parsed.deadline ? new Date(parsed.deadline) : prev.deadline,
+    }))
+
+    // Try to match course by code
+    if (parsed.courseCode) {
+      const matchedCourse = getCourseByCode(parsed.courseCode)
+      if (matchedCourse) {
+        setFormData((prev) => ({ ...prev, courseId: matchedCourse.id }))
+      }
+    }
+  }, [getCourseByCode])
+
+  const handleAcceptParsed = async () => {
+    if (!parsedResult) return
+
+    // If course is still missing, show manual form
+    if (!formData.courseId) {
+      setShowManualForm(true)
+      return
+    }
+
+    try {
+      await addAssignment({
+        title: formData.title.trim(),
+        courseId: formData.courseId,
+        deadline: formData.deadline,
+        status: AssignmentStatus.NOT_STARTED,
+        category: formData.category,
+        notes: formData.notes.trim() || undefined,
+        aiParsed: true,
+        aiConfidence: parsedResult.confidence,
+      })
+
+      showToast('Assignment added successfully', 'success')
+      handleClose()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to add assignment', 'error')
+      console.error('Error adding assignment:', error)
+    }
+  }
+
+  const handleEditParsed = () => {
+    setShowManualForm(true)
+  }
+
+  const handleRejectParsed = () => {
+    setParsedResult(null)
+    clearParseResult()
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
+    try {
+      if (isEditing && editingAssignmentId) {
+        await updateAssignment(editingAssignmentId, {
+          title: formData.title.trim(),
+          courseId: formData.courseId,
+          deadline: formData.deadline,
+          category: formData.category,
+          notes: formData.notes.trim() || undefined,
+          // File update not supported in quick edit yet
+        })
+        showToast('Assignment updated successfully', 'success')
+      } else {
+        await addAssignment({
+          title: formData.title.trim(),
+          courseId: formData.courseId,
+          deadline: formData.deadline,
+          status: AssignmentStatus.NOT_STARTED,
+          category: formData.category,
+          notes: formData.notes.trim() || undefined,
+          file: formData.file,
+          aiParsed: !!parsedResult,
+          aiConfidence: parsedResult?.confidence,
+        })
+        showToast('Assignment added successfully', 'success')
+      }
+      handleClose()
+    } catch (error: any) {
+      showToast(error.message || `Failed to ${isEditing ? 'update' : 'add'} assignment`, 'error')
+      console.error('Error saving assignment:', error)
+    }
+  }
+
+  const handleClose = () => {
+    // Reset form data is handled by useEffect when isOpen becomes false
+    setErrors({})
+    setParsedResult(null)
+    setShowManualForm(false)
+    clearParseResult()
+
+    if (isEditing) {
+      closeEditModal()
+    } else {
+      closeQuickAdd()
+    }
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title={isEditing ? "Edit Assignment" : "Add New Assignment"} size="lg">
+      {/* AI Parsing Input */}
+      {isParsingEnabled && !parsedResult && !showManualForm && (
+        <div className="mb-6 pb-6 border-b border-border">
+          {apiKey ? (
+            <>
+              <p className="text-sm text-text-muted mb-3">
+                Try AI parsing - describe your assignment naturally:
+              </p>
+              <NLPInput
+                onParsed={handleParsed}
+                placeholder="e.g., ECE 306 lab due Friday 5pm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowManualForm(true)}
+                className="mt-3 text-xs text-text-muted hover:text-text-secondary"
+              >
+                Or enter manually
+              </button>
+            </>
+          ) : (
+            <div className="bg-secondary/50 p-4 rounded-lg border border-border text-center">
+              <p className="text-sm text-text-primary font-medium mb-1">
+                AI Parsing Available
+              </p>
+              <p className="text-xs text-text-muted mb-3">
+                Enter your Google Gemini API Key to enable smart assignment parsing, study tips, and syllabus import.
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={openSettings}
+                >
+                  Enable AI Features
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowManualForm(true)}
+                >
+                  Enter Manually
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Parsed Preview */}
+      {parsedResult && !showManualForm && (
+        <ParsedPreview
+          result={parsedResult}
+          onAccept={handleAcceptParsed}
+          onEdit={handleEditParsed}
+          onReject={handleRejectParsed}
+        />
+      )}
+
+      {/* Manual Form */}
+      {(showManualForm || !isParsingEnabled) && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
+          <Input
+            label="Title"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            error={errors.title}
+            placeholder="e.g., Lab Report on Digital Circuits"
+            required
+            maxLength={LIMITS.ASSIGNMENT_TITLE_MAX}
+          />
+
+          {/* Course */}
+          <CourseSelect
+            label="Course"
+            value={formData.courseId}
+            onChange={(courseId) => setFormData({ ...formData, courseId })}
+            error={errors.courseId}
+            required
+          />
+
+          {/* Deadline */}
+          <DatePicker
+            label="Deadline"
+            value={formData.deadline}
+            onChange={(deadline) => setFormData({ ...formData, deadline })}
+            error={errors.deadline}
+            showTime
+          />
+
+          {/* Category */}
+          <Select
+            label="Category"
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value as AssignmentCategory })}
+            options={[
+              { value: AssignmentCategory.ASSIGNMENT, label: 'Assignment' },
+              { value: AssignmentCategory.EXAM, label: 'Exam' },
+              { value: AssignmentCategory.QUIZ, label: 'Quiz' },
+              { value: AssignmentCategory.HOMEWORK, label: 'Homework' },
+              { value: AssignmentCategory.LAB, label: 'Lab' },
+              { value: AssignmentCategory.PROJECT, label: 'Project' },
+              { value: AssignmentCategory.DISCUSSION, label: 'Discussion' },
+              { value: AssignmentCategory.OTHER, label: 'Other' },
+            ]}
+          />
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              Notes (optional)
+            </label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Additional notes..."
+              rows={2}
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-priority-medium resize-none"
+            />
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              Attachment (max 10MB)
+            </label>
+            <Input
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file && file.size > MAX_FILE_SIZE) {
+                  setErrors({ ...errors, file: 'File too large (max 10MB)' })
+                  return
+                }
+                setErrors({ ...errors, file: '' })
+                setFormData({ ...formData, file: file })
+              }}
+              error={errors.file}
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button type="submit" variant="primary" fullWidth>
+              {isEditing ? 'Update Assignment' : 'Add Assignment'}
+            </Button>
+            <Button type="button" variant="secondary" onClick={handleClose}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  )
+}

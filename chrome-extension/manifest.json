@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Overdue Assignment Sync",
+  "version": "1.0.0",
+  "description": "Automatically sync Moodle and Gradescope assignment submissions to your Overdue tracker",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*/mod/assign/*",
+        "*://*/course/view.php*",
+        "*://*/course/modedit.php*"
+      ],
+      "js": ["content-moodle.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.gradescope.com/*"
+      ],
+      "js": ["content-gradescope.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

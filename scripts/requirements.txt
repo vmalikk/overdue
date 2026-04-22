@@ -1,0 +1,13 @@
+# Gradescope Sync Script Dependencies
+
+# Appwrite SDK for Python
+appwrite>=5.0.0
+
+# Cryptography for token decryption (AES-GCM)
+cryptography>=41.0.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Date utilities
+python-dateutil>=2.8.0
