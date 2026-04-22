@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { format, isToday, isSameDay, addDays, startOfWeek } from 'date-fns'
 import { CalendarEvent } from '@/lib/utils/calendarUtils'
 import { Assignment } from '@/types/assignment'
@@ -15,9 +15,18 @@ interface GoogleStyleWeekViewProps {
   onDateSelect: (date: Date) => void
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
-const START_HOUR = 0
-const END_HOUR = 23
+const HOUR_HEIGHT = 60
+const TOTAL_HOURS = 24
+const START_HOUR = 6
+const TOTAL_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT  // 1440px
+const HOURS = Array.from({ length: TOTAL_HOURS }, (_, i) => i)
+
+function formatHour(hour: number) {
+  if (hour === 0) return '12 AM'
+  if (hour === 12) return '12 PM'
+  if (hour < 12) return `${hour} AM`
+  return `${hour - 12} PM`
+}
 
 export function GoogleStyleWeekView({
   currentDate,
@@ -27,99 +36,72 @@ export function GoogleStyleWeekView({
   onDateSelect,
 }: GoogleStyleWeekViewProps) {
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
-  
-  // Get week dates starting from Sunday
+  const scrollRef = useRef<HTMLDivElement>(null)
+
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
-  // Update current time every minute (client-side only)
   useEffect(() => {
-    setCurrentTime(new Date())
+    const now = new Date()
+    setCurrentTime(now)
     const interval = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(interval)
   }, [])
 
-  // Calculate current time position
-  const currentHour = currentTime ? currentTime.getHours() + currentTime.getMinutes() / 60 : 0
-  const currentTimePosition = currentTime ? (currentHour / 24) * 100 : null
+  // Scroll to 6 AM (or 1h before current time if today) on mount
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const todayInView = weekDates.some(d => isToday(d))
+    const now = new Date()
+    const target = todayInView
+      ? Math.max((now.getHours() - 1) * HOUR_HEIGHT, START_HOUR * HOUR_HEIGHT)
+      : START_HOUR * HOUR_HEIGHT
+    scrollRef.current.scrollTop = target
+  }, [currentDate])
 
-  // Get events for a specific date
   const getEventsForDate = (date: Date) => {
-    const dayStart = new Date(date)
-    dayStart.setHours(0, 0, 0, 0)
-    const dayEnd = new Date(date)
-    dayEnd.setHours(23, 59, 59, 999)
-
-    return events.filter(e => {
-      const start = new Date(e.start)
-      return start >= dayStart && start <= dayEnd
-    })
+    const s = new Date(date); s.setHours(0, 0, 0, 0)
+    const e = new Date(date); e.setHours(23, 59, 59, 999)
+    return events.filter(ev => { const d = new Date(ev.start); return d >= s && d <= e })
   }
 
-  // Get assignments for a specific date  
   const getAssignmentsForDate = (date: Date) => {
-    const dayStart = new Date(date)
-    dayStart.setHours(0, 0, 0, 0)
-    const dayEnd = new Date(date)
-    dayEnd.setHours(23, 59, 59, 999)
-
-    return assignments.filter(a => {
-      const deadline = new Date(a.deadline)
-      return deadline >= dayStart && deadline <= dayEnd
-    })
+    const s = new Date(date); s.setHours(0, 0, 0, 0)
+    const e = new Date(date); e.setHours(23, 59, 59, 999)
+    return assignments.filter(a => { const d = new Date(a.deadline); return d >= s && d <= e })
   }
 
-  // Calculate event position and height
-  const getEventStyle = (start: Date, end: Date) => {
-    const startHour = start.getHours() + start.getMinutes() / 60
-    const endHour = end.getHours() + end.getMinutes() / 60
-    const duration = endHour - startHour
-    
-    return {
-      top: `${(startHour / 24) * 100}%`,
-      height: `${Math.max((duration / 24) * 100, 2)}%`, // Min 2% height
-    }
-  }
+  const getTop = (date: Date) => (date.getHours() + date.getMinutes() / 60) * HOUR_HEIGHT
+  const getHeight = (start: Date, end: Date) =>
+    Math.max(((end.getTime() - start.getTime()) / 3600000) * HOUR_HEIGHT, 20)
 
-  const formatHour = (hour: number) => {
-    if (hour === 0) return '12 AM'
-    if (hour === 12) return '12 PM'
-    if (hour < 12) return `${hour} AM`
-    return `${hour - 12} PM`
-  }
+  const currentTimeTop = currentTime
+    ? (currentTime.getHours() + currentTime.getMinutes() / 60) * HOUR_HEIGHT
+    : null
 
   return (
     <div className="bg-secondary border border-border rounded-lg overflow-hidden flex flex-col h-full">
-      {/* Header with day names and dates */}
-      <div className="flex border-b border-border bg-background sticky top-0 z-30">
-        {/* Timezone label */}
-        <div className="w-16 flex-shrink-0 py-2 px-2 text-[10px] text-text-muted text-center border-r border-border">
-          GMT-05
-        </div>
-        
-        {/* Day headers */}
-        {weekDates.map((date) => {
+      {/* Day headers */}
+      <div className="flex border-b border-border bg-background sticky top-0 z-30 flex-shrink-0">
+        <div className="w-16 flex-shrink-0 py-2 border-r border-border" />
+        {weekDates.map(date => {
           const isTodayDate = isToday(date)
           const isSelected = selectedDate && isSameDay(date, selectedDate)
-          
           return (
             <div
               key={date.toISOString()}
               className={clsx(
                 'flex-1 py-2 text-center cursor-pointer transition-colors border-r border-border last:border-r-0',
-                isSelected && 'bg-accent/50'
+                isSelected && 'bg-surface'
               )}
               onClick={() => onDateSelect(date)}
             >
-              <div className={clsx(
-                'text-xs font-medium',
-                isTodayDate ? 'text-blue-400' : 'text-text-muted'
-              )}>
+              <div className={clsx('text-xs font-medium', isTodayDate ? 'text-blue-400' : 'text-text-muted')}>
                 {format(date, 'EEE').toUpperCase()}
               </div>
               <div className={clsx(
                 'text-2xl font-normal mt-0.5',
-                isTodayDate 
+                isTodayDate
                   ? 'bg-blue-500 text-white w-10 h-10 rounded-full flex items-center justify-center mx-auto'
                   : 'text-text-primary'
               )}>
@@ -130,22 +112,16 @@ export function GoogleStyleWeekView({
         })}
       </div>
 
-      {/* All-day events section */}
-      <div className="flex border-b border-border bg-background">
-        <div className="w-16 flex-shrink-0 border-r border-border" />
-        {weekDates.map((date) => {
-          const dayEvents = getEventsForDate(date).filter(e => e.isAllDay)
+      {/* All-day row */}
+      <div className="flex border-b border-border bg-background flex-shrink-0">
+        <div className="w-16 flex-shrink-0 border-r border-border py-1 px-2 text-[10px] text-text-muted">All day</div>
+        {weekDates.map(date => {
+          const allDay = getEventsForDate(date).filter(e => e.isAllDay)
           return (
-            <div
-              key={`allday-${date.toISOString()}`}
-              className="flex-1 min-h-[24px] border-r border-border last:border-r-0 p-0.5"
-            >
-              {dayEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="text-[10px] bg-blue-500/80 text-white px-1 rounded truncate"
-                >
-                  {event.summary}
+            <div key={`allday-${date.toISOString()}`} className="flex-1 min-h-[20px] border-r border-border last:border-r-0 p-0.5">
+              {allDay.map(ev => (
+                <div key={ev.id} className="text-[10px] bg-blue-500/80 text-white px-1 rounded truncate mb-0.5">
+                  {ev.summary}
                 </div>
               ))}
             </div>
@@ -153,16 +129,16 @@ export function GoogleStyleWeekView({
         })}
       </div>
 
-      {/* Time grid */}
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="flex min-h-[1440px]"> {/* 24 hours * 60px per hour */}
+      {/* Scrollable time grid */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
+        <div className="flex" style={{ height: TOTAL_HEIGHT }}>
           {/* Time labels */}
-          <div className="w-16 flex-shrink-0 border-r border-border relative">
-            {HOURS.map((hour) => (
+          <div className="w-16 flex-shrink-0 border-r border-border relative flex-shrink-0" style={{ height: TOTAL_HEIGHT }}>
+            {HOURS.map(hour => (
               <div
                 key={hour}
-                className="absolute w-full text-right pr-2 text-[10px] text-text-muted"
-                style={{ top: `${(hour / 24) * 100}%`, transform: 'translateY(-50%)' }}
+                className="absolute w-full text-right pr-2 text-[10px] text-text-muted select-none"
+                style={{ top: hour * HOUR_HEIGHT - 7, height: HOUR_HEIGHT }}
               >
                 {hour > 0 && formatHour(hour)}
               </div>
@@ -170,75 +146,64 @@ export function GoogleStyleWeekView({
           </div>
 
           {/* Day columns */}
-          {weekDates.map((date) => {
+          {weekDates.map(date => {
             const dayEvents = getEventsForDate(date).filter(e => !e.isAllDay)
             const dayAssignments = getAssignmentsForDate(date)
-            const isTodayColumn = isToday(date)
+            const isTodayCol = isToday(date)
 
             return (
               <div
                 key={date.toISOString()}
                 className="flex-1 relative border-r border-border last:border-r-0"
+                style={{ height: TOTAL_HEIGHT }}
               >
-                {/* Hour grid lines */}
-                {HOURS.map((hour) => (
-                  <div
-                    key={hour}
-                    className="absolute w-full border-t border-border/50"
-                    style={{ top: `${(hour / 24) * 100}%`, height: `${100 / 24}%` }}
-                  />
+                {/* Hour lines */}
+                {HOURS.map(hour => (
+                  <div key={hour} className="absolute w-full border-t border-border/40" style={{ top: hour * HOUR_HEIGHT }} />
+                ))}
+                {/* Half-hour lines */}
+                {HOURS.map(hour => (
+                  <div key={`h-${hour}`} className="absolute w-full border-t border-border/20" style={{ top: hour * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
                 ))}
 
-                {/* Current time indicator */}
-                {isTodayColumn && currentTime && currentTimePosition !== null && (
-                  <div
-                    className="absolute left-0 right-0 z-20 pointer-events-none"
-                    style={{ top: `${currentTimePosition}%` }}
-                  >
+                {/* Current time */}
+                {isTodayCol && currentTimeTop !== null && (
+                  <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: currentTimeTop }}>
                     <div className="flex items-center">
-                      <div className="w-3 h-3 bg-red-500 rounded-full -ml-1.5" />
-                      <div className="flex-1 h-0.5 bg-red-500" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1 flex-shrink-0" />
+                      <div className="flex-1 h-px bg-red-500" />
                     </div>
                   </div>
                 )}
 
-                {/* Calendar Events */}
-                {dayEvents.map((event, index) => {
+                {/* Calendar events */}
+                {dayEvents.map(event => {
                   const start = new Date(event.start)
                   const end = new Date(event.end)
-                  const style = getEventStyle(start, end)
-
                   return (
                     <div
                       key={event.id}
                       className="absolute left-0.5 right-0.5 bg-blue-500/90 text-white rounded px-1.5 py-0.5 overflow-hidden cursor-pointer hover:bg-blue-600 transition-colors z-10"
-                      style={style}
+                      style={{ top: getTop(start), height: getHeight(start, end) }}
                       onClick={() => onDateSelect(date)}
                     >
-                      <div className="text-xs font-medium truncate">
-                        {event.summary}
-                      </div>
-                      <div className="text-[10px] opacity-90">
-                        {format(start, 'h:mma').toLowerCase()} – {format(end, 'h:mma').toLowerCase()}
-                      </div>
+                      <div className="text-xs font-medium truncate">{event.summary}</div>
+                      <div className="text-[10px] opacity-80">{format(start, 'h:mma').toLowerCase()}</div>
                     </div>
                   )
                 })}
 
                 {/* Assignments */}
-                {dayAssignments.map((assignment, index) => {
+                {dayAssignments.map(assignment => {
                   const deadline = new Date(assignment.deadline)
-                  const endTime = new Date(deadline.getTime() + 60 * 60 * 1000)
-                  const style = getEventStyle(deadline, endTime)
+                  const endTime = new Date(deadline.getTime() + 3600000)
                   const status = calculateStatus(assignment)
-
                   const bgColor = {
                     red: 'bg-red-500/90 hover:bg-red-600',
                     yellow: 'bg-yellow-500/90 hover:bg-yellow-600',
                     green: 'bg-green-500/90 hover:bg-green-600',
                     gray: 'bg-gray-500/90 hover:bg-gray-600',
                   }[status.color]
-
                   return (
                     <div
                       key={assignment.id}
@@ -246,15 +211,11 @@ export function GoogleStyleWeekView({
                         'absolute left-0.5 right-0.5 text-white rounded px-1.5 py-0.5 overflow-hidden cursor-pointer transition-colors z-10',
                         bgColor
                       )}
-                      style={style}
+                      style={{ top: getTop(deadline), height: getHeight(deadline, endTime) }}
                       onClick={() => onDateSelect(date)}
                     >
-                      <div className="text-xs font-medium truncate">
-                        📝 {assignment.title}
-                      </div>
-                      <div className="text-[10px] opacity-90">
-                        Due {format(deadline, 'h:mma').toLowerCase()}
-                      </div>
+                      <div className="text-xs font-medium truncate">📝 {assignment.title}</div>
+                      <div className="text-[10px] opacity-80">Due {format(deadline, 'h:mma').toLowerCase()}</div>
                     </div>
                   )
                 })}
