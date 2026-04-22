@@ -389,7 +389,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.7)',
+        background: 'rgba(0,0,0,0.55)',
         backdropFilter: 'blur(8px)',
         zIndex: 9999,
         display: 'flex',

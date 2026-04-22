@@ -97,7 +97,7 @@ export function NewAssignmentRow({ assignment, index = 0, onClick }: NewAssignme
     >
       <style>{`
         .assignment-row:hover {
-          background: rgba(255,255,255,0.022) !important;
+          background: var(--bg3) !important;
         }
         .assignment-row .delete-btn {
           opacity: 0;
